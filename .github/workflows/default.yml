@@ -22,5 +22,6 @@ jobs:
       - uses: int128/kaniko-action@v1
         with:
           push: false
+          file: deploy/test/Dockerfile
           tags: html-to-pdf
       - run: docker run --rm html-to-pdf yarn test
