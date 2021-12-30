@@ -21,11 +21,11 @@ jobs:
       TAG: html-to-pdf
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/cache@v2
+      - uses: martijnhols/actions-cache/restore@main
         with:
           key: yarn-cache
           path: ~/.yarn/cache
       - name: Build container
         run: docker build --file deploy/test/Dockerfile --tag ${TAG} .
-      - name: Run test ina conteiner
+      - name: Run test in a conteiner
         run: docker run --rm ${TAG} yarn test
