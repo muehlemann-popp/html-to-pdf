@@ -3,7 +3,7 @@ name: Quality check
 on: push
 
 jobs:
-  check:
+  lint-test:
     runs-on: ubuntu-latest
     env:
       TAG: html-to-pdf
