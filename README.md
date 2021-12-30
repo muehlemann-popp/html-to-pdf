@@ -1,6 +1,10 @@
 HTML to PDF
 ==========
 
+![MIT](https://img.shields.io/github/license/muehlemann-popp/html-to-pdf)
+![image size](https://img.shields.io/docker/image-size/muehlemannpopp/html-to-pdf)
+![version](https://img.shields.io/docker/v/muehlemannpopp/html-to-pdf/latest)
+
 Microservice for generating PDF and screenshots from either provided HTML or a URL.
 Uses [puppeteer](https://developers.google.com/web/tools/puppeteer) and
 [headless-chrome](https://chromium.googlesource.com/chromium/src/+/lkgr/headless/README.md).
@@ -17,9 +21,11 @@ or [zenika/alpine-chrome](https://github.com/Zenika/alpine-chrome#3-ways-to-secu
 why we have `--no-sandbox`.
 
 
-## <a name="setup">Images</a>
+## <a name="images">Docker Images</a>
 
-You can find prebuilt images on [dockerhub](https://hub.docker.com/r/muehlemannpopp/html-to-pdf).
+You can find prebuilt docker images on [dockerhub](https://hub.docker.com/r/muehlemannpopp/html-to-pdf). Each tag on 
+github should have corresponding docker image tag on dockerhub. For each commit to `main` branch a corresponding tag 
+starting with `git-` prefix is created. This can be used if you want to use some latest version that was not yet released.
 
 
 ## <a name="setup">Setup</a>
