@@ -1,6 +1,10 @@
 HTML to PDF
 ==========
 
+![MIT](https://img.shields.io/github/license/muehlemann-popp/html-to-pdf)
+![image size](https://img.shields.io/docker/image-size/muehlemannpopp/html-to-pdf)
+![version](https://img.shields.io/docker/v/muehlemannpopp/html-to-pdf/latest)
+
 Microservice for generating PDF and screenshots from either provided HTML or a URL.
 Uses [puppeteer](https://developers.google.com/web/tools/puppeteer) and
 [headless-chrome](https://chromium.googlesource.com/chromium/src/+/lkgr/headless/README.md).
