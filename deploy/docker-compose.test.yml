@@ -1,0 +1,14 @@
+---
+version: "3.8"
+services:
+  printer-test:
+    image: muehlemann-popp/html-to-pdf-test
+    build:
+      context: ../
+      dockerfile: deploy/test/Dockerfile
+    container_name: html-to-pdf-test
+    command: yarn test
+    environment:
+      - ENV=local
+      - RELEASE_ID=edge
+

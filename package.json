@@ -1,0 +1,63 @@
+{
+  "name": "html-to-pdf",
+  "version": "1.0.0",
+  "homepage": "https://github.com/muehlemann-popp/html-to-pdf",
+  "license": "MIT",
+  "scripts": {
+    "start": "touch ./build/main.dev.js; npm-run-all --parallel --print-label watch:server watch:build",
+    "start:prod": "node ./build/main.prod.js",
+    "watch:server": "nodemon ./build/main.dev.js --watch ./build/main.dev.js",
+    "watch:build": "env-cmd -f .env.dev webpack --watch",
+    "build": "yarn build:prod",
+    "build:prod": "env-cmd -f .env.prod webpack",
+    "build:dev": "env-cmd -f .env.dev webpack",
+    "lint": "eslint ./",
+    "test": "jest --colors"
+  },
+  "dependencies": {
+    "@sentry/node": "^6.7.2",
+    "@sentry/tracing": "^6.9.0",
+    "@types/body-parser": "^1.19.0",
+    "@types/marked": "^2.0.3",
+    "body-parser": "^1.19.0",
+    "express": "^4.17.1",
+    "marked": "^2.1.2",
+    "prom-client": "^13.1.0",
+    "puppeteer": "^10.4.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.12",
+    "@types/jest": "^26.0.23",
+    "@types/node": "^15.12.4",
+    "@types/puppeteer": "^5.4.4",
+    "@types/supertest": "^2.0.11",
+    "@types/terser-webpack-plugin": "^5.0.3",
+    "@types/webpack": "^5.28.0",
+    "@types/webpack-node-externals": "^2.5.1",
+    "@typescript-eslint/eslint-plugin": "^4.28.0",
+    "@typescript-eslint/parser": "^4.28.0",
+    "env-cmd": "^10.1.0",
+    "eslint": "^7.29.0",
+    "eslint-config-airbnb-base": "^14.2.1",
+    "eslint-config-airbnb-typescript": "^12.3.1",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-import-resolver-ts": "^0.4.2",
+    "eslint-plugin-import": "^2.23.4",
+    "eslint-plugin-prettier": "^3.4.0",
+    "jest": "^27.0.5",
+    "nodemon": "^2.0.7",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^2.3.1",
+    "supertest": "^6.1.3",
+    "terser-webpack-plugin": "^5.1.3",
+    "ts-jest": "^27.0.3",
+    "ts-loader": "^9.2.3",
+    "ts-node": "^10.0.0",
+    "typescript": "^4.2.4",
+    "webpack": "^5.37.0",
+    "webpack-cli": "^4.7.2"
+  },
+  "engines": {
+    "node": "~15"
+  }
+}

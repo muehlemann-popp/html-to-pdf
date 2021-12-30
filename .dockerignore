@@ -1,0 +1,15 @@
+# .yarn/ needs to be copied in CI to make use of caching, please do not ignore
+# skip node_modules if any. Note yarn can still generate node_modules if needed
+node_modules/
+# skip build result
+build/
+# skip editors
+.idea/
+# skip dotfiles not needed inside
+.dockerignore
+.gitignore
+.editorconfig
+.gitlab-ci.yml
+Makefile
+deploy/helm/
+deploy/*.yml

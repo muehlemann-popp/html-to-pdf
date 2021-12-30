@@ -1,0 +1,30 @@
+---
+version: "3.8"
+services:
+  printer:
+    image: muehlemann-popp/html-to-pdf
+    build:
+      context: ../
+      dockerfile: deploy/dev/Dockerfile
+    volumes:
+      - '../src/:/app/src/'
+    container_name: html-to-pdf
+    command: yarn start
+    environment:
+      - ENV=local
+      - RELEASE_ID=edge
+      - BROWSERLESS_URL=ws://browserless-chrome:3000
+    ports:
+      - 0.0.0.0:4000:4000
+
+  # optional service, will only run with debug profile
+  # see https://docs.docker.com/compose/profiles/
+  browserless:
+    image: browserless/chrome
+    container_name: browserless-chrome
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+    profiles:
+      - debug
+

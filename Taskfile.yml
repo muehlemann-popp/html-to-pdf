@@ -1,0 +1,84 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/taskfile.json
+version: '3'
+
+silent: true
+vars:
+  # this needs to be run inside bash since taskfile uses https://github.com/mvdan/sh to run commands
+  NODE_ENV: |
+    [ -z "$$NVM_DIR" ] && export NVM_DIR="$$HOME/.nvm";
+    [ -s "$$NVM_DIR/nvm.sh" ] && . "$$NVM_DIR/nvm.sh";
+    [ -s "/usr/local/opt/nvm/nvm.sh" ] && . "/usr/local/opt/nvm/nvm.sh";
+    nvm use;
+  COMPOSE: docker-compose --file deploy/docker-compose.yml --file deploy/docker-compose.private.yml
+
+tasks:
+  default: task --list
+
+  init:node:
+    desc: Install required version of node
+    cmds:
+      - bash -c '{{ .NODE_ENV }} nvm install'
+
+  init:yarn:
+    desc: Install yarn
+    cmds:
+      - bash -c '{{ .NODE_ENV }} npm install --global yarn'
+
+  init:local:
+    desc: Init repository for local development
+    cmds:
+      - task: init:node
+      - task: init:yarn
+      - bash -c '{{ .NODE_ENV }} yarn install'
+
+  lint:local:
+    desc: Lint code with eslint
+    cmds:
+      - bash -c '{{ .NODE_ENV }} yarn lint'
+
+  run:debug:
+    desc: Runs docker image used for debugging
+    cmds:
+      - "{{ .COMPOSE }} --profile debug up"
+
+  run:
+    desc: Alias for start
+    cmds:
+      - 'task start -- {{ .CLI_ARGS }}'
+
+  start:
+    desc: Build docker image and container, use `task start -- --build` to rebuild
+    cmds:
+      - "{{ .COMPOSE }} up {{ .CLI_ARGS }}"
+
+  stop:
+    desc: Stop all containers
+    cmds:
+      - "{{ .COMPOSE }} down {{ .CLI_ARGS }}"
+
+  restart:
+    desc: Stops and starts containers
+    cmds:
+      - task stop
+      - task start
+
+  start:local:
+    desc: Run app locally
+    cmds:
+      - bash -c '{{ .NODE_ENV }} yarn start'
+
+  test:
+    desc: Run tests in docker
+    cmds:
+      - docker-compose --file deploy/docker-compose.test.yml up --build
+
+  test:local:
+    desc: Run tests locally
+    cmds:
+      - bash -c '{{ .NODE_ENV }} yarn test -- {{ .CLI_ARGS }}'
+
+  build:local:
+    desc: Build app locally
+    cmds:
+      - bash -c '{{ .NODE_ENV }} yarn build'

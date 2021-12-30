@@ -1,0 +1,23 @@
+# yarn2+
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+
+# node modules if any. Note yarn can still generate node_modules if needed
+node_modules/
+
+# build result
+build/
+
+# editors
+.idea/
+
+# OS generated files
+.DS_Store
+._.DS_Store
+
+# prvate config
+/deploy/docker-compose.private.yml
