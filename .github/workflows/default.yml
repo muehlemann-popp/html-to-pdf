@@ -8,14 +8,15 @@ jobs:
     container: node:16-alpine
     steps:
       - uses: actions/checkout@v2
-      - uses: martijnhols/actions-cache/restore@main
+      - name: Fetch yarn caches
+        uses: martijnhols/actions-cache/restore@main
         id: cache
         with:
           key: yarn-cache
           path: ~/.yarn/cache
       - run: yarn install
       - run: yarn lint --max-warnings 0
-      - name: Save caches back
+      - name: Save yarn caches
         uses: martijnhols/actions-cache/save@main
         with:
           path: ~/.yarn/cache
@@ -27,7 +28,8 @@ jobs:
       TAG: html-to-pdf
     steps:
       - uses: actions/checkout@v2
-      - uses: martijnhols/actions-cache/restore@main
+      - name: Fetch yarn caches
+        uses: martijnhols/actions-cache/restore@main
         with:
           key: yarn-cache
           path: ~/.yarn/cache
