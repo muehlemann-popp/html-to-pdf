@@ -1,10 +1,12 @@
-name: Lint
+name: Quality check
 
 on: push
 
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      TAG: html-to-pdf
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
@@ -15,5 +17,5 @@ jobs:
       - run: yarn lint --max-warnings 0
       - name: Build container
         run: docker build --file deploy/test/Dockerfile --tag ${TAG} .
-      - name: Run test in a conteiner
+      - name: Run test in a container
         run: docker run --rm ${TAG} yarn test
