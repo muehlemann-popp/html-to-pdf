@@ -17,11 +17,9 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    env:
+      TAG: html-to-pdf
     steps:
       - uses: actions/checkout@v2
-      - uses: int128/kaniko-action@v1
-        with:
-          push: false
-          file: deploy/test/Dockerfile
-          tags: html-to-pdf
-      - run: docker run --rm html-to-pdf yarn test
+      - run: docker build --file deploy/Dockerfile_test --tag ${TAG} .
+      - run: docker run --rm ${TAG} yarn test
