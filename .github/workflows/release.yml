@@ -16,22 +16,22 @@ jobs:
         with:
           node-version: '16'
           cache: 'yarn'
-      - uses: docker/metadata-action@v3
+      - name: Define docker image metadata
+        uses: docker/metadata-action@v3
         id: metadata
         with:
           images: muehlemannpopp/html-to-pdf
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha
-      - name: Login to Docker Hub
+      - name: Login to DockerHub
         uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: int128/kaniko-action@v1
+      - name: Build and push an image to DockerHub
+        uses: int128/kaniko-action@v1
         with:
           push: true
           file: deploy/prod/Dockerfile
