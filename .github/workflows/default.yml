@@ -21,5 +21,5 @@ jobs:
       TAG: html-to-pdf
     steps:
       - uses: actions/checkout@v2
-      - run: docker build --file deploy/Dockerfile_test --tag ${TAG} .
+      - run: docker build --file deploy/test/Dockerfile --tag ${TAG} .
       - run: docker run --rm ${TAG} yarn test
