@@ -25,5 +25,7 @@ jobs:
         with:
           key: yarn-cache
           path: ~/.yarn/cache
-      - run: docker build --file deploy/test/Dockerfile --tag ${TAG} .
-      - run: docker run --rm ${TAG} yarn test
+      - name: Build container
+        run: docker build --file deploy/test/Dockerfile --tag ${TAG} .
+      - name: Run test ina conteiner
+        run: docker run --rm ${TAG} yarn test
