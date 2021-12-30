@@ -21,5 +21,9 @@ jobs:
       TAG: html-to-pdf
     steps:
       - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+          cache: 'yarn'
       - run: docker build --file deploy/test/Dockerfile --tag ${TAG} .
       - run: docker run --rm ${TAG} yarn test
