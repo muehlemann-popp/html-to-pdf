@@ -1,0 +1,21 @@
+name: Quality check
+
+on: push
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    env:
+      TAG: html-to-pdf
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+          cache: 'yarn'
+      - run: yarn install
+      - run: yarn lint --max-warnings 0
+      - name: Build container
+        run: docker build --file deploy/test/Dockerfile --tag ${TAG} .
+      - name: Run test in a container
+        run: docker run --rm ${TAG} yarn test
