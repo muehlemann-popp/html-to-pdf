@@ -8,5 +8,19 @@ jobs:
     container: node:16-alpine
     steps:
       - uses: actions/checkout@v2
-      - run: time yarn install
-      - run: time yarn lint --max-warnings 0
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+          cache: 'yarn'
+      - run: yarn install
+      - run: yarn lint --max-warnings 0
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: int128/kaniko-action@v1
+        with:
+          push: false
+          tags: html-to-pdf
+      - run: docker run --rm html-to-pdf yarn test
