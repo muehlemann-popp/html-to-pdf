@@ -20,7 +20,7 @@ ENV \
 WORKDIR /usr/src/app
 COPY --from=builder /app/build/main.prod.js .
 COPY favicon.ico .
-COPY deploy/services/printer/docker-entrypoint.sh /docker-entrypoint.sh
+COPY deploy/prod/docker-entrypoint.sh /docker-entrypoint.sh
 COPY README.md .
 
 ENTRYPOINT ["tini", "--"]
