@@ -37,7 +37,7 @@ describe('Basic routing', () => {
       .get('/')
       .expect('Content-Type', /text\/html/)
       .expect(200)
-      .expect(/printer engine for creating PDF and screenshots/)
+      .expect(/Microservice for generating PDF and screenshots/)
   })
 
   it('should print about:blank when GET /pdf without parameters', async () => {
