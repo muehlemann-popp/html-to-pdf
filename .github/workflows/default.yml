@@ -3,36 +3,16 @@ name: Lint
 on: push
 
 jobs:
-  lint:
+  check:
     runs-on: ubuntu-latest
-    container: node:16-alpine
     steps:
       - uses: actions/checkout@v2
-      - name: Fetch yarn caches
-        uses: martijnhols/actions-cache/restore@main
-        id: cache
+      - uses: actions/setup-node@v2
         with:
-          key: yarn-cache
-          path: ~/.yarn/cache
+          node-version: '16'
+          cache: 'yarn'
       - run: yarn install
       - run: yarn lint --max-warnings 0
-      - name: Save yarn caches
-        uses: martijnhols/actions-cache/save@main
-        with:
-          path: ~/.yarn/cache
-          key: ${{ steps.cache.outputs.primary-key }}
-
-  test:
-    runs-on: ubuntu-latest
-    env:
-      TAG: html-to-pdf
-    steps:
-      - uses: actions/checkout@v2
-      - name: Fetch yarn caches
-        uses: martijnhols/actions-cache/restore@main
-        with:
-          key: yarn-cache
-          path: ~/.yarn/cache
       - name: Build container
         run: docker build --file deploy/test/Dockerfile --tag ${TAG} .
       - name: Run test in a conteiner
