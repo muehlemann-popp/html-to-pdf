@@ -1,7 +1,7 @@
 HTML to PDF
 ==========
 
-A printer engine for creating PDF and screenshots from either provided HTML or an url.
+Microservice for generating PDF and screenshots from either provided HTML or a URL.
 Uses [puppeteer](https://developers.google.com/web/tools/puppeteer) and
 [headless-chrome](https://chromium.googlesource.com/chromium/src/+/lkgr/headless/README.md).
 Written in [typescript](https://www.typescriptlang.org/)
@@ -15,6 +15,11 @@ It's only meant to be run as a microservice in your private network where you co
 See [puppeteer docs](https://github.com/puppeteer/puppeteer/blob/main/docs/troubleshooting.md#setting-up-chrome-linux-sandbox) 
 or [zenika/alpine-chrome](https://github.com/Zenika/alpine-chrome#3-ways-to-securely-use-chrome-headless-with-this-image)
 why we have `--no-sandbox`.
+
+
+## <a name="setup">Images</a>
+
+You can find prebuilt images on [dockerhub](https://hub.docker.com/r/muehlemannpopp/html-to-pdf).
 
 
 ## <a name="setup">Setup</a>
