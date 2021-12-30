@@ -5,7 +5,7 @@ ENV \
   PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 WORKDIR /app
-COPY .. /app
+COPY . /app
 
 # change user to bypass write limitations
 USER root

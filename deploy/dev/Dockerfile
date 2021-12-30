@@ -8,7 +8,7 @@ ENV \
 USER root
 
 WORKDIR /app
-COPY .. /app
+COPY . /app
 
 RUN chown -R chrome ./
 
