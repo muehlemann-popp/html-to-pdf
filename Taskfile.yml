@@ -6,8 +6,8 @@ silent: true
 vars:
   # this needs to be run inside bash since taskfile uses https://github.com/mvdan/sh to run commands
   NODE_ENV: |
-    [ -z "$$NVM_DIR" ] && export NVM_DIR="$$HOME/.nvm";
-    [ -s "$$NVM_DIR/nvm.sh" ] && . "$$NVM_DIR/nvm.sh";
+    [ -z "$NVM_DIR" ] && export NVM_DIR="$HOME/.nvm";
+    [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh";
     [ -s "/usr/local/opt/nvm/nvm.sh" ] && . "/usr/local/opt/nvm/nvm.sh";
     nvm use;
   COMPOSE: docker-compose --file deploy/docker-compose.yml --file deploy/docker-compose.private.yml
