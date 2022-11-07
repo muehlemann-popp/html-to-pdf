@@ -5,7 +5,8 @@ services:
     image: muehlemann-popp/html-to-pdf-test
     build:
       context: ../
-      dockerfile: deploy/test/Dockerfile
+      dockerfile: deploy/Dockerfile
+      target: test
     container_name: html-to-pdf-test
     command: yarn test
     environment:

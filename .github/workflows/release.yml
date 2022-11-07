@@ -16,9 +16,12 @@ jobs:
         with:
           node-version: '16'
           cache: 'yarn'
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
       - name: Define docker image metadata
         uses: docker/metadata-action@v3
-        id: metadata
+        id: meta
         with:
           images: muehlemannpopp/html-to-pdf
           tags: |
@@ -31,10 +34,11 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build and push an image to DockerHub
-        uses: int128/kaniko-action@v1
+      - name: Build and push
+        uses: docker/bake-action@v1
         with:
           push: true
-          file: deploy/prod/Dockerfile
-          tags: ${{ steps.metadata.outputs.tags }}
-          labels: ${{ steps.metadata.outputs.labels }}
+          files: |
+            ./docker-bake.hcl
+            ${{ steps.meta.outputs.bake-file }}
+          targets: build

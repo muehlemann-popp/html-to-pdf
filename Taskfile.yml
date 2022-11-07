@@ -10,7 +10,7 @@ vars:
     [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh";
     [ -s "/usr/local/opt/nvm/nvm.sh" ] && . "/usr/local/opt/nvm/nvm.sh";
     nvm use;
-  COMPOSE: docker-compose --file deploy/docker-compose.yml --file deploy/docker-compose.private.yml
+  COMPOSE: docker-compose --file deploy/docker-compose.yml
 
 tasks:
   default: task --list
@@ -82,3 +82,8 @@ tasks:
     desc: Build app locally
     cmds:
       - bash -c '{{ .NODE_ENV }} yarn build'
+
+  build:
+    desc: Build app image
+    cmds:
+      - '{{ .COMPOSE }} build {{ .CLI_ARGS }}'

@@ -5,7 +5,8 @@ services:
     image: muehlemann-popp/html-to-pdf
     build:
       context: ../
-      dockerfile: deploy/dev/Dockerfile
+      dockerfile: deploy/Dockerfile
+      target: dev
     volumes:
       - '../src/:/app/src/'
     container_name: html-to-pdf
