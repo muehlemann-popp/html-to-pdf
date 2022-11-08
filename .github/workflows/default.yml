@@ -16,6 +16,6 @@ jobs:
       - run: yarn install
       - run: yarn lint --max-warnings 0
       - name: Build container
-        run: docker build --file deploy/test/Dockerfile --tag ${TAG} .
+        run: docker build --file deploy/Dockerfile --target test --tag ${TAG} .
       - name: Run test in a container
         run: docker run --rm ${TAG} yarn test
