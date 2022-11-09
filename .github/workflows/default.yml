@@ -7,6 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TAG: html-to-pdf
+      PUPPETEER_SKIP_DOWNLOAD: 1
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
