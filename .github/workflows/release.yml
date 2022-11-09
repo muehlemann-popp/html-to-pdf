@@ -18,12 +18,13 @@ jobs:
         with:
           node-version: '16'
           cache: 'yarn'
+      # https://github.com/docker/buildx/issues/495#issuecomment-1043341496
       - name: Set up QEMU
         id: qemu
         uses: docker/setup-qemu-action@v2
         with:
           image: tonistiigi/binfmt:qemu-v6.2.0
-          platforms: arm64
+          platforms: amd64,arm64
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v2
