@@ -12,6 +12,9 @@ vars:
     nvm use;
   COMPOSE: docker-compose --file deploy/docker-compose.yml
 
+env:
+  PUPPETEER_SKIP_DOWNLOAD: 1
+
 tasks:
   default: task --list
 
