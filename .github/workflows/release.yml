@@ -28,6 +28,8 @@ jobs:
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          platforms: amd64,arm64
       - name: Define docker image metadata
         uses: docker/metadata-action@v4
         id: meta

@@ -1,12 +1,4 @@
-FROM node:16-alpine as builder
-
-WORKDIR /app
-COPY . /app
-
-RUN yarn install && yarn build
-
-
-FROM alpine:3.16 as prod
+FROM alpine:3.16 as base
 
 ARG RELEASE_ID
 ARG CI_BUILD_DATE
@@ -36,6 +28,16 @@ RUN \
   && chown -R chrome:chrome /app
 
 WORKDIR /app
+
+
+FROM base as builder
+
+COPY . /app
+
+RUN yarn install && yarn build
+
+
+FROM base as prod
 
 COPY deploy/local.conf /etc/fonts/local.conf
 COPY --from=builder /app/build/main.prod.js .
