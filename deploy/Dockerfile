@@ -19,8 +19,7 @@ RUN \
   && apk add --no-cache \
     tini make gcc g++ python3 git nodejs npm yarn \
   && mkdir -p /app/build \
-  && addgroup -g 1000 chrome  \
-  && adduser -u 1000 -G chrome -D chrome \
+  && adduser -D chrome \
   && chown -R chrome:chrome /app
 
 WORKDIR /app
