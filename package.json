@@ -23,7 +23,7 @@
     "express": "^4.17.1",
     "marked": "^2.1.2",
     "prom-client": "^13.1.0",
-    "puppeteer": "^19.2.2"
+    "puppeteer": "^18.2.1"
   },
   "devDependencies": {
     "@types/express": "^4.17.12",
@@ -58,6 +58,6 @@
     "webpack-cli": "^4.7.2"
   },
   "engines": {
-    "node": "~15"
+    "node": "~16"
   }
 }
