@@ -10,7 +10,6 @@ FROM alpine:3.16 as base
 RUN \
   apk upgrade --no-cache --available \
   && apk add --no-cache  \
-    gcompat \
     chromium \
     ttf-freefont \
     font-noto-emoji \
@@ -20,7 +19,8 @@ RUN \
   && apk add --no-cache \
     tini make gcc g++ python3 git nodejs npm yarn \
   && mkdir -p /app/build \
-  && adduser -D chrome \
+  && addgroup -g 1000 chrome  \
+  && adduser -u 1000 -G chrome -D chrome \
   && chown -R chrome:chrome /app
 
 WORKDIR /app
