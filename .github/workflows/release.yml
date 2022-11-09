@@ -12,9 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '16'
 
       # https://github.com/docker/buildx/issues/495#issuecomment-1043341496
       - name: Set up QEMU
