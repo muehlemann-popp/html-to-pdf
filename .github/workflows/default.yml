@@ -10,13 +10,7 @@ jobs:
       PUPPETEER_SKIP_DOWNLOAD: 1
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-          cache: 'yarn'
-      - run: yarn install
-      - run: yarn lint --max-warnings 0
       - name: Build container
         run: docker build --file deploy/Dockerfile --target test --tag ${TAG} .
       - name: Run test in a container
-        run: docker run --rm ${TAG} yarn test
+        run: docker run --rm ${TAG} yarn lint --max-warnings 0 && yarn test
