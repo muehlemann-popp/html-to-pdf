@@ -75,5 +75,3 @@ FROM prod as test
 USER root
 
 COPY . /app
-
-RUN yarn
