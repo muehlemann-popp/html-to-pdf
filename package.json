@@ -23,7 +23,7 @@
     "express": "^4.17.1",
     "marked": "^2.1.2",
     "prom-client": "^13.1.0",
-    "puppeteer": "^18.1.0"
+    "puppeteer": "18.1.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.12",
