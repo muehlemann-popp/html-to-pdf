@@ -1,4 +1,4 @@
-import { Configuration } from 'webpack'
+import { Configuration, optimize } from 'webpack'
 import { resolve } from 'path'
 import TerserPlugin from 'terser-webpack-plugin'
 
@@ -36,9 +36,10 @@ const config: Configuration = {
   optimization: {
     minimizer: [new TerserPlugin({ extractComments: false })],
   },
-  // we better bundle everything into 1 script file to ease docker image creation, thus commented out below
-  externals: [
-    isProdBuild ? {} : /^[a-z\-0-9]+$/, // Ignore node_modules folder
+  plugins: [
+    new optimize.LimitChunkCountPlugin({
+      maxChunks: 1,
+    }),
   ],
 }
 
