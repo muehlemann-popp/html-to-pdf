@@ -9,7 +9,8 @@ FROM alpine:3.16 as base
 # Installs latest Chromium package.
 RUN \
   apk upgrade --no-cache --available \
-  && apk add --no-cache \
+  && apk add --no-cache  \
+    gcompat \
     chromium \
     ttf-freefont \
     font-noto-emoji \
@@ -19,7 +20,7 @@ RUN \
   && apk add --no-cache \
     tini make gcc g++ python3 git nodejs npm yarn \
   && mkdir -p /app/build \
-  && /usr/sbin/adduser -D chrome \
+  && adduser -D chrome \
   && chown -R chrome:chrome /app
 
 WORKDIR /app
