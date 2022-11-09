@@ -19,7 +19,7 @@ RUN \
   && apk add --no-cache \
     tini make gcc g++ python3 git nodejs npm yarn \
   && mkdir -p /app/build \
-  && adduser -D chrome \
+  && /usr/sbin/adduser -D chrome \
   && chown -R chrome:chrome /app
 
 WORKDIR /app
@@ -76,7 +76,7 @@ COPY . /app
 
 RUN chown -R chrome ./
 
-# change user back to one used by zenika image
+# change user back to default
 USER chrome
 
 RUN yarn install
