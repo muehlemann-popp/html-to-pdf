@@ -1,7 +1,7 @@
 import { checkUnrecoverableError, registerUnrecoverableError } from '~/util/error-trigger'
 
 describe('Error trigger is persisted', () => {
-  it('should display readme when opening root', async () => {
+  it('check unrecoverable error', async () => {
     expect(checkUnrecoverableError()).toBeFalsy()
     registerUnrecoverableError()
     expect(checkUnrecoverableError()).toBeTruthy()
