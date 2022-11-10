@@ -83,5 +83,3 @@ ENV \
 USER root
 
 COPY . /app
-
-RUN yarn install
