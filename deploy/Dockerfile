@@ -1,7 +1,7 @@
 ARG RELEASE_ID
 ARG CI_BUILD_DATE
 
-FROM alpine:3.16 as base
+FROM node:19-alpine as base
 
 # Installs latest Chromium package.
 RUN \
@@ -14,7 +14,7 @@ RUN \
     --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing \
     font-wqy-zenhei \
   && apk add --no-cache \
-    tini make gcc g++ python3 git nodejs npm yarn \
+    tini make gcc g++ python3 git \
   && mkdir -p /app/build \
   && adduser -D chrome \
   && chown -R chrome:chrome /app
@@ -42,6 +42,11 @@ RUN yarn install && yarn build
 
 
 FROM base as prod
+
+ENV \
+  CHROME_BIN=/usr/bin/chromium-browser \
+  CHROME_PATH=/usr/lib/chromium/ \
+  PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 COPY --from=builder /app/build/main.prod.js .
 

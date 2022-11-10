@@ -15,7 +15,7 @@ const config: Configuration = {
     filename: `[name].${buildSuffix}.js`,
     publicPath: '/',
     // we need to target CommonJS, otherwise node cannot execute file
-    libraryTarget: 'commonjs',
+    libraryTarget: 'commonjs2',
   },
   resolve: {
     roots: [__dirname],
