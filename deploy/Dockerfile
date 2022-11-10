@@ -26,9 +26,6 @@ COPY favicon.ico .
 COPY deploy/docker-entrypoint.sh /docker-entrypoint.sh
 COPY README.md .
 
-# Run Chrome as non-privileged
-USER chrome
-
 ENTRYPOINT ["tini", "--"]
 
 EXPOSE 4000
@@ -48,6 +45,9 @@ FROM base as prod
 
 COPY --from=builder /app/build/main.prod.js .
 
+# Run Chrome as non-privileged
+USER chrome
+
 
 FROM base as dev
 
@@ -58,14 +58,10 @@ ENV \
   RELEASE_ID=$RELEASE_ID \
   CI_BUILD_DATE=$CI_BUILD_DATE
 
-# change user to bypass write limitations
-USER root
-
 COPY . /app
 
 RUN chown -R chrome ./
 
-# change user back to default
 USER chrome
 
 RUN yarn install
@@ -79,9 +75,6 @@ ENV \
   PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
   RELEASE_ID=$RELEASE_ID \
   CI_BUILD_DATE=$CI_BUILD_DATE
-
-# change user to bypass write limitations
-USER root
 
 COPY . /app
 
