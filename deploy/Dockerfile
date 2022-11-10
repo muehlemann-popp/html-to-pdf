@@ -9,7 +9,7 @@ FROM alpine:3.16 as base
 # Installs latest Chromium package.
 RUN \
   apk upgrade --no-cache --available \
-  && apk add --no-cache  \
+  && apk add --no-cache \
     chromium \
     ttf-freefont \
     font-noto-emoji \
@@ -74,7 +74,9 @@ USER root
 
 COPY . /app
 
-RUN chown -R chrome ./
+RUN \
+  rm main.prod.js \
+  && chown -R chrome ./
 
 # change user back to default
 USER chrome
@@ -95,4 +97,6 @@ USER root
 
 COPY . /app
 
-RUN yarn install
+RUN \
+  rm main.prod.js \
+  && yarn install
