@@ -44,5 +44,6 @@ module.exports = {
     '.eslintrc.js',
     '.yarn',
     'build',
+    'main.prod.js',
   ],
 }
