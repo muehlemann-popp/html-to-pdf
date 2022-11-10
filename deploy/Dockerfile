@@ -21,20 +21,7 @@ RUN \
 
 WORKDIR /app
 
-
-FROM base as builder
-
-ENV PUPPETEER_SKIP_DOWNLOAD=1
-
-COPY . /app
-
-RUN yarn install && yarn build
-
-
-FROM base as prod
-
 COPY deploy/local.conf /etc/fonts/local.conf
-COPY --from=builder /app/build/main.prod.js .
 COPY favicon.ico .
 COPY deploy/docker-entrypoint.sh /docker-entrypoint.sh
 COPY README.md .
@@ -48,7 +35,21 @@ EXPOSE 4000
 CMD ["/docker-entrypoint.sh"]
 
 
-FROM prod as dev
+FROM base as builder
+
+ENV PUPPETEER_SKIP_DOWNLOAD=1
+
+COPY . /app
+
+RUN yarn install && yarn build
+
+
+FROM base as prod
+
+COPY --from=builder /app/build/main.prod.js .
+
+
+FROM base as dev
 
 ENV \
   CHROME_BIN=/usr/bin/chromium-browser \
@@ -70,7 +71,7 @@ USER chrome
 RUN yarn install
 
 
-FROM prod as test
+FROM base as test
 
 ENV \
   CHROME_BIN=/usr/bin/chromium-browser \
@@ -83,3 +84,5 @@ ENV \
 USER root
 
 COPY . /app
+
+RUN yarn install
