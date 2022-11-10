@@ -5,7 +5,7 @@ import timestamp from '~/util/timestamp'
 
 export const logRequestTime = async <T> (
   requestInfo: string,
-  preRequestLog = false,
+  preRequestLog: boolean,
   processRequest: () => Promise<T>,
 ): Promise<T> => {
   const start = performance.now()
@@ -38,7 +38,7 @@ export const logRequestTime = async <T> (
 export const processRequestError = async <T> (
   requestInfo: string,
   res: Response,
-  rethrow = false,
+  rethrow: boolean,
   processRequest: () => Promise<T>,
 ): Promise<T | null> => {
   let result: T | null = null
@@ -64,7 +64,7 @@ export const processRequestError = async <T> (
 const logRequest = async <T> (
   requestInfo: string,
   res: Response,
-  preRequestLog = false,
+  preRequestLog: boolean,
   processRequest: () => Promise<T>,
 ): Promise<T | null> => processRequestError(
   requestInfo,
