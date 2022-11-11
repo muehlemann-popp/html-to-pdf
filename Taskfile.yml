@@ -12,6 +12,10 @@ vars:
     nvm use;
   COMPOSE: docker-compose --file deploy/docker-compose.yml
 
+env:
+  DOCKER_TARGET: dev
+  PUPPETEER_SKIP_DOWNLOAD: 1
+
 tasks:
   default: task --list
 
@@ -85,5 +89,7 @@ tasks:
 
   build:
     desc: Build app image
+    env:
+      DOCKER_TARGET: prod
     cmds:
       - '{{ .COMPOSE }} build {{ .CLI_ARGS }}'

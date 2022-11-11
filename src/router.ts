@@ -1,5 +1,5 @@
 import express, { Request, Response, Router } from 'express'
-import marked from 'marked'
+import { marked } from 'marked'
 import fs from 'fs'
 import { register } from 'prom-client'
 import { CaptureMime, CaptureParameters, CaptureType } from '~/interface'

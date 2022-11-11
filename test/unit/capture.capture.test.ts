@@ -1,5 +1,4 @@
 import puppeteer from 'puppeteer'
-import { mocked } from 'ts-jest/utils'
 import capture, { defaultViewportOptions } from '~/controller/capture'
 import { CaptureType } from '~/interface'
 
@@ -26,7 +25,7 @@ jest.mock('puppeteer', () => ({
 }))
 
 beforeEach(() => {
-  mocked(puppeteer.launch).mockClear()
+  jest.mocked(puppeteer.launch).mockClear()
   Object.values(pageProto).forEach((v) => v.mockClear())
   Object.values(browserProto).forEach((v) => v.mockClear())
 })

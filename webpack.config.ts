@@ -1,4 +1,4 @@
-import { Configuration, optimize } from 'webpack'
+import { Configuration } from 'webpack'
 import { resolve } from 'path'
 import TerserPlugin from 'terser-webpack-plugin'
 
@@ -15,7 +15,7 @@ const config: Configuration = {
     filename: `[name].${buildSuffix}.js`,
     publicPath: '/',
     // we need to target CommonJS, otherwise node cannot execute file
-    libraryTarget: 'commonjs',
+    libraryTarget: 'commonjs2',
   },
   resolve: {
     roots: [__dirname],
@@ -36,10 +36,10 @@ const config: Configuration = {
   optimization: {
     minimizer: [new TerserPlugin({ extractComments: false })],
   },
-  plugins: [
-    new optimize.LimitChunkCountPlugin({
-      maxChunks: 1,
-    }),
+  // we better bundle everything into 1 script file to ease docker image creation, thus commented out below
+  // cannot use optimize.LimitChunkCountPlugin because of https://stackoverflow.com/a/73318866/2848264
+  externals: [
+    isProdBuild ? {} : /^[a-z\-0-9]+$/, // Ignore node_modules folder
   ],
 }
 

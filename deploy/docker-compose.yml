@@ -6,7 +6,7 @@ services:
     build:
       context: ../
       dockerfile: deploy/Dockerfile
-      target: dev
+      target: "${DOCKER_TARGET}"
     volumes:
       - '../src/:/app/src/'
     container_name: html-to-pdf

@@ -44,6 +44,8 @@ const captureAndReturn = async (
       }
     })
   } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error(e)
     registerUnrecoverableError()
     // it failed twice, we better exit now and restart node process
     // eslint-disable-next-line no-console
