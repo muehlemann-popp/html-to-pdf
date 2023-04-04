@@ -11,8 +11,7 @@ Uses [puppeteer](https://developers.google.com/web/tools/puppeteer) and
 Written in [typescript](https://www.typescriptlang.org/)
 compiled by [webpack](https://webpack.js.org/) and
 dependencies managed by [yarn 3](https://yarnpkg.com/).
-Docker file is based on [`zenika/alpine-chrome`](https://github.com/Zenika/alpine-chrome)
-image but it can be replaced with any other having headless chrome and [node.js](https://nodejs.org/) in it.
+Docker file is inspired by [`zenika/alpine-chrome`](https://github.com/Zenika/alpine-chrome).
 
 ⚠️ Disclaimer: chrome is run with `--no-sandbox` flag meaning it should **NOT** be run as a public service.
 It's only meant to be run as a microservice in your private network where you control **what** you are printing.
