@@ -12,7 +12,7 @@
     "build:prod": "env-cmd -f .env.prod webpack",
     "build:dev": "env-cmd -f .env.dev webpack",
     "lint": "eslint ./",
-    "test": "jest --colors"
+    "test": "jest --colors --runInBand"
   },
   "dependencies": {
     "@sentry/node": "^7.19.0",
