@@ -9,7 +9,7 @@ import { closeBrowser } from '~/controller/browser'
 
 afterAll(closeBrowser)
 
-async function downloadPDF(cb: (v: request.SuperTest<request.Test>) => request.Test): Promise<string> {
+async function downloadPDF(cb: (v: request.Agent) => request.Test): Promise<string> {
   const response = await cb(request(app))
     .expect('Content-Type', /application\/pdf/)
     .expect(200)
