@@ -1,3 +1,5 @@
+// first: Sentry is initialised before the app and its dependencies are loaded
+import '~/instrument'
 import app from '~/app'
 import timestamp from '~/util/timestamp'
 

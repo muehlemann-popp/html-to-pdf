@@ -74,4 +74,5 @@ as an ES module because it is declared, not because its syntax detection guessed
 - `tsconfig.json` uses `moduleResolution: Bundler`: imports stay without file extensions, which is
   what esbuild and Vitest resolve.
 - The bundle still contains everything, so Sentry's auto-instrumentation of Express does not apply;
-  errors reach Sentry through its Express error handler.
+  errors reach Sentry through its Express error handler, see `src/instrument.ts`. Checked against the
+  built bundle with a local stand-in for Sentry: `/debug-sentry` and a failing `/selfcheck` both arrive.

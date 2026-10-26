@@ -13,8 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@sentry/node": "^7.19.0",
-    "@sentry/tracing": "^7.19.0",
+    "@sentry/node": "^10.76.2",
     "@types/marked": "^4.0.7",
     "express": "5.3.0",
     "marked": "^4.2.2",
