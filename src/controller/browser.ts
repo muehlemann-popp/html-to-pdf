@@ -14,11 +14,17 @@ const maxCaptures = Number(process.env.BROWSER_MAX_CAPTURES) || 100
 const idleTimeout = Number(process.env.BROWSER_IDLE_TIMEOUT_MS) || 30000
 
 /**
- We trust the content we open in Chrome, so we can launch Chrome with the --no-sandbox argument.
- Generally running without a sandbox is strongly discouraged. Consider configuring a sandbox instead!
+ Chromium runs without its sandbox by default (--no-sandbox), so a renderer exploited by a page runs
+ with the rights of the service. CHROME_SANDBOX=1 turns the sandbox on. Only the user-namespace sandbox
+ exists here: Alpine's chromium-headless-shell ships no setuid chrome-sandbox, hence
+ --disable-setuid-sandbox in both modes. It needs the zygote (no --no-zygote), unprivileged user
+ namespaces on the host and a seccomp profile that allows creating them (deploy/chrome-seccomp.json);
+ under Docker's default profile the launch fails with "No usable sandbox!". It does not stop pages from
+ fetching internal URLs. See docs/adr/0003-opt-in-chromium-sandbox.md.
  @see: https://pptr.dev/troubleshooting#setting-up-chrome-linux-sandbox
 */
 const launch = async (): Promise<Browser> => {
+  const sandbox = process.env.CHROME_SANDBOX === '1'
   const browser = await puppeteer.launch({
     // chrome-headless-shell in the image; with a regular Chrome binary (local dev) this is new headless
     headless: 'shell',
@@ -47,8 +53,7 @@ const launch = async (): Promise<Browser> => {
       '--hide-scrollbars',
       '--mute-audio',
       '--no-first-run',
-      '--no-sandbox', // see above
-      '--no-zygote',
+      ...(sandbox ? [] : ['--no-sandbox', '--no-zygote']), // see above
       '--safebrowsing-disable-auto-update',
       // no --single-process or --in-process-gpu: Chromium 155 crashes on startup with either
     ],
@@ -57,7 +62,7 @@ const launch = async (): Promise<Browser> => {
     // the initial about:blank tab would keep a renderer process alive for nothing
     await Promise.all((await browser.pages()).map((page) => page.close()))
     // eslint-disable-next-line no-console
-    console.info(`[${timestamp()}] Browser launched: ${await browser.version()}`)
+    console.info(`[${timestamp()}] Browser launched: ${await browser.version()}, sandbox ${sandbox ? 'on' : 'off'}`)
   } catch (e) {
     // nobody gets this browser, so nobody else would close its process and temporary profile
     await browser.close().catch(() => undefined)

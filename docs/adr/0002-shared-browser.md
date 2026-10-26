@@ -45,3 +45,7 @@ shrinks the unused GPU process.
 - Captures are isolated by browser context, not by process. Cookies, `localStorage` and the HTTP
   cache do not leak between requests; the service still only renders trusted content (`--no-sandbox`).
 - The Browserless debug path (`BROWSERLESS=1`) still connects per request.
+- Since [ADR 0003](0003-opt-in-chromium-sandbox.md) the Chromium sandbox can be turned on
+  (`CHROME_SANDBOX=1` plus `deploy/chrome-seccomp.json`). It puts renderers into namespaces of their
+  own, but captures still share one browser process, and it does not stop pages from loading
+  internal URLs.

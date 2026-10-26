@@ -37,6 +37,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   vi.useRealTimers()
+  vi.unstubAllEnvs()
   await closeBrowser()
   vi.restoreAllMocks()
 })
@@ -104,6 +105,21 @@ describe('shared browser', () => {
     expect(launched[0].close).toHaveBeenCalled()
     await (await acquireContext()).release(false)
     expect(puppeteer.launch).toHaveBeenCalledTimes(2)
+  })
+
+  it('launches without the sandbox unless CHROME_SANDBOX=1', async () => {
+    vi.stubEnv('CHROME_SANDBOX', '')
+    await (await acquireContext()).release(false)
+    await closeBrowser()
+    vi.stubEnv('CHROME_SANDBOX', '1')
+    await (await acquireContext()).release(false)
+
+    const [off, on] = vi.mocked(puppeteer.launch).mock.calls.map(([options]) => options?.args)
+    expect(off).toEqual(expect.arrayContaining(['--no-sandbox', '--no-zygote', '--disable-setuid-sandbox']))
+    // the namespace sandbox needs the zygote; there is no setuid sandbox to fall back to
+    expect(on).not.toContain('--no-sandbox')
+    expect(on).not.toContain('--no-zygote')
+    expect(on).toContain('--disable-setuid-sandbox')
   })
 
   it('launches a new browser when the previous launch failed', async () => {

@@ -17,3 +17,7 @@ jobs:
         run: docker run --rm ${TAG} yarn lint --max-warnings 0
       - name: Run test in a container
         run: docker run --rm ${TAG} yarn test
+      - name: Run test in a container with the Chromium sandbox
+        run: docker run --rm --env CHROME_SANDBOX=1 --security-opt seccomp=deploy/chrome-seccomp.json ${TAG} yarn test
+      - name: Run test in a container with the Chromium sandbox and the Kubernetes profile
+        run: docker run --rm --env CHROME_SANDBOX=1 --cap-drop ALL --security-opt no-new-privileges --security-opt seccomp=deploy/chrome-seccomp-kubernetes.json ${TAG} yarn test
