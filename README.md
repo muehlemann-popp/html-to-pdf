@@ -84,11 +84,16 @@ docker run -p 4000:4000 --env CHROME_SANDBOX=1 \
   --security-opt seccomp=deploy/chrome-seccomp.json muehlemannpopp/html-to-pdf
 ```
 
-Kubernetes: put the file on every node below the kubelet's seccomp directory, e.g.
-`/var/lib/kubelet/seccomp/profiles/chrome-seccomp.json` (by hand, with a DaemonSet or with the
+Kubernetes needs the other file,
+[`deploy/chrome-seccomp-kubernetes.json`](deploy/chrome-seccomp-kubernetes.json): the same rules
+without Docker's conditions on capabilities and architecture, which containerd does not understand.
+With `chrome-seccomp.json`, containerd would drop the conditions and allow `mount`, `setns` and the
+rest of what Docker only allows with `CAP_SYS_ADMIN`. The Kubernetes file assumes what the example
+below sets: all capabilities dropped, amd64 or arm64. Put it on every node below the kubelet's
+seccomp directory, e.g. `/var/lib/kubelet/seccomp/profiles/chrome-seccomp-kubernetes.json` (by hand,
+with a DaemonSet or with the
 [Security Profiles Operator](https://github.com/kubernetes-sigs/security-profiles-operator)), and
-reference it from the pod. `--cap-drop ALL` and no privilege escalation work with it, so this also
-fits the `restricted` Pod Security Standard:
+reference it from the pod. This also fits the `restricted` Pod Security Standard:
 
 ```yaml
 spec:
@@ -97,7 +102,7 @@ spec:
     runAsUser: 1001
     seccompProfile:
       type: Localhost
-      localhostProfile: profiles/chrome-seccomp.json
+      localhostProfile: profiles/chrome-seccomp-kubernetes.json
   containers:
     - name: html-to-pdf
       image: muehlemannpopp/html-to-pdf

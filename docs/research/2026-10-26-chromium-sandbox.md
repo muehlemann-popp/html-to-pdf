@@ -33,6 +33,11 @@ and ran with `seccomp=unconfined`; its numbers are listed where they differ.
 | `deploy/chrome-seccomp.json`, on | 200 | 6 |
 | `deploy/chrome-seccomp.json`, on, `--cap-drop ALL --security-opt no-new-privileges` | 200 | 6 |
 | `deploy/chrome-seccomp.json`, on, as root | fails, `Running as root without --no-sandbox is not supported` | 0 |
+| `deploy/chrome-seccomp-kubernetes.json`, on, `--cap-drop ALL --security-opt no-new-privileges` | 200, whole suite passes | 6 |
+
+The Kubernetes file is the same profile with Docker's capability and architecture conditions
+resolved (ADR 0003). Under Docker it has no conditions left to evaluate, so this row shows what
+containerd applies when it loads the file.
 
 The profile is Docker's default with three changes (see ADR 0003): `clone` and `unshare` may create
 user, PID and network namespaces, and `chroot` no longer needs `CAP_SYS_CHROOT`. Mount, cgroup, UTS

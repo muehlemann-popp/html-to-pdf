@@ -12,6 +12,6 @@ insert_final_newline = true
 [*.md]
 trim_trailing_whitespace = false
 
-[deploy/chrome-seccomp.json]
+[deploy/chrome-seccomp{,-kubernetes}.json]
 # tabs, like the Docker default profile it is derived from, so the two diff cleanly
 indent_style = tab

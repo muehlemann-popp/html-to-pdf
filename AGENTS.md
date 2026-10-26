@@ -14,6 +14,7 @@ docker build --file deploy/Dockerfile --target test --tag html-to-pdf:test .
 docker run --rm html-to-pdf:test yarn test      # what CI runs, with the image's Chromium
 docker run --rm --env CHROME_SANDBOX=1 --security-opt seccomp=deploy/chrome-seccomp.json \
   html-to-pdf:test yarn test                    # CI again, with the Chromium sandbox on
+                                                # (and a third time with chrome-seccomp-kubernetes.json)
 node scripts/benchmark.mjs <image> <out-dir>    # memory/latency + reference outputs per image
 ```
 
@@ -47,5 +48,7 @@ point it at one with `PUPPETEER_EXECUTABLE_PATH`, or run tests in the `test` ima
 - The Chromium sandbox is opt-in (`CHROME_SANDBOX=1`, [ADR 0003](docs/adr/0003-opt-in-chromium-sandbox.md))
   and needs `deploy/chrome-seccomp.json`; CI runs the suite in both modes, the `test` image runs as
   `chrome` because Chromium refuses its sandbox as root. Keep both modes working, and re-derive the
-  profile from Docker's default rather than editing unrelated rules.
+  profile from Docker's default rather than editing unrelated rules. Never edit
+  `deploy/chrome-seccomp-kubernetes.json` by hand: regenerate it with
+  `node scripts/seccomp-kubernetes.mjs` (a unit test fails if it is out of date).
 - Conventional commit prefixes (`feat:`, `fix:`, `docs:`, `chore:`); one topic per pull request.
