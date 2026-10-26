@@ -1,12 +1,11 @@
 import express from 'express'
-import { json } from 'body-parser'
 import { init as sentry, Handlers as SentryHandlers } from '@sentry/node'
 import { Integrations as SentryTracing } from '@sentry/tracing'
 import router from '~/router'
 
 const app: express.Application = express()
 const appConfigure = (): void => {
-  app.use(json({ limit: '30mb' }))
+  app.use(express.json({ limit: '30mb' }))
   app.use('/', router)
 }
 const {

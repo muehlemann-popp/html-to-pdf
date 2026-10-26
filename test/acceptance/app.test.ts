@@ -48,6 +48,31 @@ describe('Basic routing', () => {
       .expect(/Microservice for generating PDF and screenshots/)
   })
 
+  it('should serve the favicon', async () => {
+    await request(app)
+      .get('/favicon.ico')
+      // the IANA type, express 4 sent image/x-icon
+      .expect('Content-Type', /image\/vnd\.microsoft\.icon/)
+      .expect(200)
+  })
+
+  it.each(['/nope', '/nope/deeper', '/pdf/nope'])('should answer %s with 404', async (path) => {
+    await request(app)
+      .get(path)
+      .expect('Content-Type', /application\/json/)
+      .expect(404)
+      .expect((res) => {
+        expect(res.body).toStrictEqual({ error: `not found: ${path}` })
+      })
+  })
+
+  it('should take a screenshot of about:blank when POST /screenshot without parameters', async () => {
+    await request(app)
+      .post('/screenshot')
+      .expect('Content-Type', /image\/png/)
+      .expect(200)
+  })
+
   it('should print about:blank when GET /pdf without parameters', async () => {
     const content: string = await downloadPDF((req) => req.get('/pdf'))
     testBlankPDFContent(content)
