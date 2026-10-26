@@ -23,7 +23,11 @@ if (!image || !outDirArg) {
 const option = (name, fallback) => flags.find((f) => f.startsWith(`--${name}=`))?.split('=')[1] ?? fallback
 const memoryLimit = option('memory', '')
 const rounds = Number(option('rounds', '10'))
-const env = flags.filter((f) => f.startsWith('--env=')).map((f) => f.slice('--env='.length))
+// the shared browser (ADR 0002) closes after BROWSER_IDLE_TIMEOUT_MS, so a Chromium still running after
+// it is a leak; 1 s unless --env sets it, images that launch per request ignore it
+const env = ['BROWSER_IDLE_TIMEOUT_MS=1000',
+  ...flags.filter((f) => f.startsWith('--env=')).map((f) => f.slice('--env='.length))]
+const idleTimeoutMs = Number(env.findLast((e) => e.startsWith('BROWSER_IDLE_TIMEOUT_MS=')).split('=')[1])
 const only = option('scenarios', '').split(',').filter(Boolean)
 const outDir = resolve(outDirArg)
 mkdirSync(outDir, { recursive: true })
@@ -69,7 +73,7 @@ const scenarios = {
   rich: async () => { const r = []; for (let i = 0; i < rounds; i += 1) r.push(await request('rich')); return r },
   long: async () => { const r = []; for (let i = 0; i < Math.ceil(rounds / 2); i += 1) r.push(await request('long')); return r },
   screenshot: async () => { const r = []; for (let i = 0; i < rounds; i += 1) r.push(await request('screenshot')); return r },
-  // the service launches one browser per request, so this is 8 browsers at once
+  // 8 browsers at once on images that launch per request, 8 contexts in one browser since ADR 0002
   parallel8: async () => {
     const r = []
     for (let i = 0; i < 3; i += 1) r.push(...await Promise.all(Array.from({ length: 8 }, () => request('simple'))))
@@ -110,6 +114,7 @@ const run = async (scenario) => {
     await sleep(1000)
     const anonPeak = stopSampling()
     const after = readMemory(name)
+    await sleep(idleTimeoutMs + 1000)
     const processes = docker('exec', name, 'ps', '-o', 'comm').split('\n').filter((p) => /chrom/i.test(p)).length
     const times = results.map((r) => r.ms).sort((a, b) => a - b)
     return {

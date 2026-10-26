@@ -112,4 +112,15 @@ describe('shared browser', () => {
     await (await acquireContext()).release(false)
     expect(puppeteer.launch).toHaveBeenCalledTimes(2)
   })
+
+  it('closes a browser that launched but failed its setup', async () => {
+    vi.mocked(puppeteer.launch).mockImplementationOnce(async () => {
+      const browser = newBrowser()
+      browser.version.mockRejectedValueOnce(new Error('Target closed'))
+      launched.push(browser)
+      return browser as never
+    })
+    await expect(acquireContext()).rejects.toThrow('Target closed')
+    expect(launched[0].close).toHaveBeenCalled()
+  })
 })

@@ -38,7 +38,11 @@ Peak memory (MiB, `memory.peak`) / median latency (ms):
 | B Chromium 155 headless shell | 349 / 87 | 120 / 78 | 147 / 806 | 150 / 162 | 133 / 148 | 731 / 179 |
 | C as A + `--in-process-gpu --renderer-process-limit=1` | 359 / 182 | 237 / 204 | 403 / 1079 | 285 / 280 | 165 / 231 | 1273 / 452 |
 | D as B + the flags of C | crashes at launch | | | | | |
-| **Final image** (B, as on the branch) | 118 / 79 | 120 / 82 | 136 / 800 | 149 / 154 | 134 / 150 | 731 / 190 |
+| B, per-request browser, before the shared browser | 118 / 79 | 120 / 82 | 136 / 800 | 149 / 154 | 134 / 150 | 731 / 190 |
+
+All variants above still launch one browser per request. The image on the branch shares one browser
+between requests; its numbers are in [Closing the gap](#closing-the-gap-shared-browser-and-trimmed-flags)
+(8 concurrent PDFs: 265 MiB instead of 731 MiB).
 
 The final image is 1.22 GB (baseline 1.42 GB): it carries `chromium-headless-shell` instead of
 `chromium` and no longer the compiler toolchain for native addons.

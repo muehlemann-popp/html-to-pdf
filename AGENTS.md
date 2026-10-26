@@ -34,7 +34,9 @@ point it at one with `PUPPETEER_EXECUTABLE_PATH`, or run tests in the `test` ima
 - `/selfcheck` is the readiness probe of every deployment; do not tighten what it asserts.
 - Failures of the page the caller asked for become a `TargetError` (`src/util/target-error.ts`,
   400/502/504, no retry, no restart); everything else is a service failure (500, one retry, then
-  the process exits and `deploy/docker-entrypoint.sh` restarts it). Keep that split when adding
+  the process exits and `deploy/docker-entrypoint.sh` restarts it). Net errors that are not clearly
+  the site's (`ERR_ABORTED`, `ERR_FAILED`, …) take the retry and become a 502 only if the fresh
+  browser fails the same way (`toRetriedTargetError`). Keep that split when adding
   error handling; the acceptance tests fail if a caller error makes the process exit.
 - One shared browser, one `BrowserContext` per request (`src/controller/browser.ts`,
   [ADR 0002](docs/adr/0002-shared-browser.md)). Never let a capture touch another request's context,

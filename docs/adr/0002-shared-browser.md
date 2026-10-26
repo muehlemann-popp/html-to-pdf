@@ -37,7 +37,9 @@ shrinks the unused GPU process.
 - Captures share a browser process: a capture that crashes the browser fails the captures running
   next to it. Each of them is retried once on a fresh browser, as before.
 - Only service failures replace the browser. A page that cannot be loaded (bad URL, unreachable
-  site, timeout) is answered with 400/502/504 and keeps browser and process as they are; before
+  site, timeout) is answered with 400/502/504 and keeps browser and process as they are. Net errors
+  that a failing browser reports as well (`ERR_ABORTED`, `ERR_FAILED`, …) are retried on a fresh
+  browser first and only answered with 502 if that fails the same way. Before
   this change two such failures in a row restarted the whole service, together with every request
   in flight (see the README, "Errors").
 - Captures are isolated by browser context, not by process. Cookies, `localStorage` and the HTTP

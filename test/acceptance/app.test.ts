@@ -75,8 +75,14 @@ describe('Basic routing', () => {
 
   // the service must answer these and keep running: vitest fails the run if process.exit is called
   describe('pages that cannot be loaded', () => {
-    // accepts connections and never answers, so loading from it runs into the timeout
-    const silent = createServer(() => undefined)
+    // accepts connections and never answers, so loading from it runs into the timeout;
+    // except /download, a file download that Chromium aborts (net::ERR_ABORTED on every attempt)
+    const silent = createServer((req, res) => {
+      if (req.url === '/download') {
+        res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Disposition': 'attachment' })
+        res.end('x')
+      }
+    })
     const silentUrl = () => `http://127.0.0.1:${(silent.address() as AddressInfo).port}`
     beforeAll(() => new Promise<void>((resolve) => { silent.listen(0, '127.0.0.1', resolve) }))
     afterAll(() => {
@@ -93,8 +99,10 @@ describe('Basic routing', () => {
         'a network idle timeout',
         () => ({ html: `<img src="${silentUrl()}/x.png">`, waitUntil: ['networkidle0'], timeout: 1500 }),
         504,
-        /Timed out/,
+        /timeout|timed out/i,
       ],
+      // retried on a fresh browser first, since ERR_ABORTED can also mean a failing browser
+      ['a download', () => ({ url: `${silentUrl()}/download` }), 502, /ERR_ABORTED/],
     ])('answers %s with its status', async (_, body, status, message) => {
       await request(app).post('/pdf').send(body())
         .expect('Content-Type', /application\/json/)

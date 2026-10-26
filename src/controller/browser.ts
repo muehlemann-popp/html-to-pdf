@@ -53,10 +53,16 @@ const launch = async (): Promise<Browser> => {
       // no --single-process or --in-process-gpu: Chromium 155 crashes on startup with either
     ],
   })
-  // the initial about:blank tab would keep a renderer process alive for nothing
-  await Promise.all((await browser.pages()).map((page) => page.close()))
-  // eslint-disable-next-line no-console
-  console.info(`[${timestamp()}] Browser launched: ${await browser.version()}`)
+  try {
+    // the initial about:blank tab would keep a renderer process alive for nothing
+    await Promise.all((await browser.pages()).map((page) => page.close()))
+    // eslint-disable-next-line no-console
+    console.info(`[${timestamp()}] Browser launched: ${await browser.version()}`)
+  } catch (e) {
+    // nobody gets this browser, so nobody else would close its process and temporary profile
+    await browser.close().catch(() => undefined)
+    throw e
+  }
   return browser
 }
 

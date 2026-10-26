@@ -103,7 +103,25 @@ describe('capture', () => {
   it('waits for network idle separately when html is set', async () => {
     await capture(CaptureType.PDF, { html: '<html />', waitUntil: ['load', 'networkidle2', 'networkidle0'] })
     expect(pageProto.setContent).toHaveBeenCalledWith('<html />', { waitUntil: ['load'] })
-    expect(pageProto.waitForNetworkIdle).toHaveBeenCalledWith({ concurrency: 0, timeout: 60000 })
+    expect(pageProto.waitForNetworkIdle).toHaveBeenCalledWith({ concurrency: 0, timeout: expect.any(Number) })
+  })
+
+  it('still waits for the document to load when html only asks for network idle', async () => {
+    await capture(CaptureType.PDF, { html: '<html />', waitUntil: ['networkidle0'] })
+    expect(pageProto.setContent).toHaveBeenCalledWith('<html />', { waitUntil: ['load'] })
+    expect(pageProto.waitForNetworkIdle).toHaveBeenCalledWith({ concurrency: 0, timeout: expect.any(Number) })
+  })
+
+  it('gives network idle only what is left of the timeout after loading html', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(0)
+      pageProto.setContent.mockImplementationOnce(async () => { vi.setSystemTime(400) })
+      await capture(CaptureType.PDF, { html: '<html />', waitUntil: ['load', 'networkidle2'], timeout: 1000 })
+      expect(pageProto.waitForNetworkIdle).toHaveBeenCalledWith({ concurrency: 2, timeout: 600 })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('uses defaults as expected', async () => {

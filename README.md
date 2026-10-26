@@ -111,7 +111,8 @@ is provided `about:blank` will be printed.
   - `waitUntil: string[]`, optional. Any of `load`, `domcontentloaded`, `networkidle0`, `networkidle2`,
     see [puppeteer docs for `PuppeteerLifeCycleEvent`](https://pptr.dev/api/puppeteer.puppeteerlifecycleevent).
     Defaults to all four for `url` and to `load` for `html`. For `html`, `networkidle0` / `networkidle2`
-    are awaited after the content is set (no connections / at most 2 for 500 ms).
+    are awaited after the content is set (no connections / at most 2 for 500 ms), and the content is
+    always awaited up to `load` at least; both waits together are bounded by `timeout`.
   
   - `timeout: number`, optional, milliseconds, defaults to 60000.
     See [puppeteer docs for `page.setDefaultNavigationTimeout()`](https://pptr.dev/api/puppeteer.page.setdefaultnavigationtimeout)
@@ -171,11 +172,12 @@ status that says whose problem it is:
 | Status | Cause | Service |
 | --- | --- | --- |
 | `400` | The URL cannot be loaded at all: malformed, blocked port or unsupported scheme (`net::ERR_UNSAFE_PORT`, `Cannot navigate to invalid URL`, …) | keeps running |
-| `502` | The requested site failed: DNS, refused connection, TLS, aborted (`net::ERR_NAME_NOT_RESOLVED`, `net::ERR_CERT_…`, …) | keeps running |
+| `502` | The requested site failed: DNS, refused connection, TLS, certificate, redirects, broken response (`net::ERR_NAME_NOT_RESOLVED`, `net::ERR_CONNECTION_REFUSED`, `net::ERR_CERT_…`, …) | keeps running |
+| `502` | Any other `net::ERR_…` (`net::ERR_ABORTED`, `net::ERR_FAILED`, e.g. a URL that downloads a file) that a fresh browser reproduced | retried once on a fresh browser, since a failing browser reports these too; keeps running |
 | `504` | The page did not finish loading within `timeout`, including `networkidle0`/`networkidle2` | keeps running |
 | `500` | The service failed to render (e.g. Chromium crashed) | retried once on a fresh browser; if the retry fails too, the process exits and the container entrypoint restarts it |
 
-`400`, `502` and `504` are not retried and not reported to Sentry.
+`400`, `502` and `504` are not reported to Sentry and, except for the second `502` row, not retried.
 
 
 ## <a name="development">Development</a>

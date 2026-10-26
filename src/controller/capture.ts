@@ -101,15 +101,21 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       // network idleness is awaited separately with the strictest requested threshold
       const lifecycle = waitUntil.filter(
         (event) => networkIdleConcurrency[event] === undefined,
-      ) as SetContentWaitForOptions['waitUntil']
+      ) as Exclude<SetContentWaitForOptions['waitUntil'], undefined | string>
       const idle = waitUntil.map((event) => networkIdleConcurrency[event])
         .filter((concurrency): concurrency is number => concurrency !== undefined)
+      // both waits share the caller's timeout (the page's navigation timeout), as one navigation would
+      const deadline = Date.now() + (params.timeout || defaultNavigationTimeout)
 
-      await navigate('page.setContent', () => page.setContent(html, { waitUntil: lifecycle }))
+      // an empty list would not wait for the document at all, only an omitted one defaults to load
+      await navigate('page.setContent', () => page.setContent(html, {
+        waitUntil: lifecycle.length ? lifecycle : ['load'],
+      }))
       if (idle.length) {
         await navigate('page.waitForNetworkIdle', () => page.waitForNetworkIdle({
           concurrency: Math.min(...idle),
-          timeout: params.timeout || defaultNavigationTimeout,
+          // at least 1 ms: 0 would disable the timeout
+          timeout: Math.max(deadline - Date.now(), 1),
         }))
       }
     } else {

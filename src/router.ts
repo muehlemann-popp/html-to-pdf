@@ -21,28 +21,32 @@ router.get('/pdf', async (req: Request, res: Response) => {
   const params: CaptureParameters = {
     url: req.query?.url as string || defaultUrl,
   }
-  await captureAndReturn(
+  const sent = await captureAndReturn(
     res,
     CaptureType.PDF,
     CaptureMime.PDF,
     req.query?.filename as string || pdfDefaultName,
     params,
   )
-  pdfCounter.inc({ method: 'get' })
+  if (sent) {
+    pdfCounter.inc({ method: 'get' })
+  }
 })
 
 /**
  * Generate PDF from an url or html via POST
  */
 router.post('/pdf', async (req: Request, res: Response) => {
-  await captureAndReturn(
+  const sent = await captureAndReturn(
     res,
     CaptureType.PDF,
     CaptureMime.PDF,
     req.query?.filename as string || pdfDefaultName,
     req.body as CaptureParameters,
   )
-  pdfCounter.inc({ method: 'post' })
+  if (sent) {
+    pdfCounter.inc({ method: 'post' })
+  }
 })
 
 /**
@@ -52,28 +56,32 @@ router.get('/screenshot', async (req: Request, res: Response) => {
   const params: CaptureParameters = {
     url: req.query?.url as string || defaultUrl,
   }
-  await captureAndReturn(
+  const sent = await captureAndReturn(
     res,
     CaptureType.Screenshot,
     CaptureMime.PNG,
     req.query?.filename as string || screenshotDefaultName,
     params,
   )
-  screenshotCounter.inc({ method: 'get' })
+  if (sent) {
+    screenshotCounter.inc({ method: 'get' })
+  }
 })
 
 /**
  * Generate screenshot from an url or html via POST
  */
 router.post('/screenshot', async (req: Request, res: Response) => {
-  await captureAndReturn(
+  const sent = await captureAndReturn(
     res,
     CaptureType.Screenshot,
     req.body.screenshotOptions?.type === 'jpeg' ? CaptureMime.JPG : CaptureMime.PNG,
     req.query?.filename as string || screenshotDefaultName,
     req.body as CaptureParameters,
   )
-  screenshotCounter.inc({ method: 'post' })
+  if (sent) {
+    screenshotCounter.inc({ method: 'post' })
+  }
 })
 
 /**
