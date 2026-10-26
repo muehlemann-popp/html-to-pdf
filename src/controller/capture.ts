@@ -70,6 +70,10 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
   if (!params) {
     throw new Error('Capture parameters should be defined')
   }
+  const { waitForSelector } = params
+  if (waitForSelector !== undefined && (typeof waitForSelector !== 'string' || !waitForSelector)) {
+    throw new TargetError('waitForSelector must be a non-empty string', 400)
+  }
   try {
     let page: Page
     if (debugUsingBrowserless) {
@@ -95,6 +99,17 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       )
     }
 
+    // all waits for the page share the caller's timeout (the page's navigation timeout)
+    const deadline = Date.now() + (params.timeout || defaultNavigationTimeout)
+    // at least 1 ms: 0 would disable the timeout
+    const remaining = () => Math.max(deadline - Date.now(), 1)
+
+    if (waitForSelector) {
+      // waitForSelector polls an invalid selector until the timeout, querying it once on the blank
+      // page throws its SyntaxError right away, before the target is loaded
+      await navigate('page.$', () => page.$(waitForSelector))
+    }
+
     const waitUntil = params.waitUntil || (url ? defaultWaitUntil : ['load'])
     if (html) {
       // setContent does not navigate, so it only accepts lifecycle events of the document itself;
@@ -104,9 +119,6 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       ) as Exclude<SetContentWaitForOptions['waitUntil'], undefined | string>
       const idle = waitUntil.map((event) => networkIdleConcurrency[event])
         .filter((concurrency): concurrency is number => concurrency !== undefined)
-      // both waits share the caller's timeout (the page's navigation timeout), as one navigation would
-      const deadline = Date.now() + (params.timeout || defaultNavigationTimeout)
-
       // an empty list would not wait for the document at all, only an omitted one defaults to load
       await navigate('page.setContent', () => page.setContent(html, {
         waitUntil: lifecycle.length ? lifecycle : ['load'],
@@ -114,13 +126,18 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       if (idle.length) {
         await navigate('page.waitForNetworkIdle', () => page.waitForNetworkIdle({
           concurrency: Math.min(...idle),
-          // at least 1 ms: 0 would disable the timeout
-          timeout: Math.max(deadline - Date.now(), 1),
+          timeout: remaining(),
         }))
       }
     } else {
       await navigate('page.goto', () => page.goto(url || defaultUrl, {
         waitUntil,
+      }))
+    }
+    if (waitForSelector) {
+      // e.g. an element a single-page app adds once it has rendered; attached is enough, visible is not required
+      await navigate('page.waitForSelector', () => page.waitForSelector(waitForSelector, {
+        timeout: remaining(),
       }))
     }
     await logException(

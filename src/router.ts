@@ -21,6 +21,7 @@ const bodyParams = (req: Request): CaptureParameters => req.body ?? {}
 router.get('/pdf', async (req: Request, res: Response) => {
   const params: CaptureParameters = {
     url: req.query?.url as string || defaultUrl,
+    waitForSelector: req.query?.waitForSelector as string | undefined,
   }
   const sent = await captureAndReturn(
     res,
@@ -56,6 +57,7 @@ router.post('/pdf', async (req: Request, res: Response) => {
 router.get('/screenshot', async (req: Request, res: Response) => {
   const params: CaptureParameters = {
     url: req.query?.url as string || defaultUrl,
+    waitForSelector: req.query?.waitForSelector as string | undefined,
   }
   const sent = await captureAndReturn(
     res,

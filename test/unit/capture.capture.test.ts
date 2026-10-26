@@ -15,6 +15,8 @@ const { pageProto, contextProto, browserProto } = vi.hoisted(() => {
     setDefaultNavigationTimeout: vi.fn().mockResolvedValue(nil),
     goto: vi.fn().mockResolvedValue(nil),
     waitForNetworkIdle: vi.fn().mockResolvedValue(nil),
+    $: vi.fn().mockResolvedValue(nil),
+    waitForSelector: vi.fn().mockResolvedValue(nil),
     evaluateHandle: vi.fn().mockResolvedValue(nil),
     setViewport: vi.fn().mockResolvedValue(nil),
     pdf: vi.fn().mockResolvedValue(nil),
@@ -122,6 +124,65 @@ describe('capture', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('does not wait for a selector unless asked to', async () => {
+    await capture(CaptureType.PDF, { html: '<html />' })
+    await capture(CaptureType.PDF, { url: 'https://example.com' })
+    expect(pageProto.$).not.toHaveBeenCalled()
+    expect(pageProto.waitForSelector).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['html', { html: '<html />' }, 'setContent'],
+    ['url', { url: 'https://example.com' }, 'goto'],
+  ] as const)('waits for the selector after loading %s, before the fonts', async (_, params, load) => {
+    await capture(CaptureType.PDF, { ...params, waitForSelector: '#pdf-ready' })
+    expect(pageProto.$).toHaveBeenCalledWith('#pdf-ready')
+    expect(pageProto.waitForSelector).toHaveBeenCalledWith('#pdf-ready', { timeout: expect.any(Number) })
+    const order = (fn: { mock: { invocationCallOrder: number[] } }) => fn.mock.invocationCallOrder[0]
+    expect(order(pageProto.$)).toBeLessThan(order(pageProto[load]))
+    expect(order(pageProto[load])).toBeLessThan(order(pageProto.waitForSelector))
+    expect(order(pageProto.waitForSelector)).toBeLessThan(order(pageProto.evaluateHandle))
+  })
+
+  it('gives the selector only what is left of the timeout after loading', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(0)
+      pageProto.setContent.mockImplementationOnce(async () => { vi.setSystemTime(300) })
+      pageProto.waitForNetworkIdle.mockImplementationOnce(async () => { vi.setSystemTime(700) })
+      await capture(CaptureType.PDF, {
+        html: '<html />', waitUntil: ['networkidle0'], waitForSelector: '#pdf-ready', timeout: 1000,
+      })
+      expect(pageProto.waitForSelector).toHaveBeenCalledWith('#pdf-ready', { timeout: 300 })
+
+      vi.setSystemTime(0)
+      pageProto.goto.mockImplementationOnce(async () => { vi.setSystemTime(1500) })
+      await capture(CaptureType.PDF, { url: 'https://example.com', waitForSelector: '#pdf-ready', timeout: 1000 })
+      // at least 1 ms, 0 would disable the timeout
+      expect(pageProto.waitForSelector).toHaveBeenLastCalledWith('#pdf-ready', { timeout: 1 })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it.each([42, '', ['#a', '#b']])('rejects waitForSelector %j as a 400 without opening a page', async (selector) => {
+    const error = await capture(CaptureType.PDF, { waitForSelector: selector as string }).catch((e) => e)
+    expect(error).toBeInstanceOf(TargetError)
+    expect(error.status).toBe(400)
+    expect(contextProto.newPage).not.toHaveBeenCalled()
+  })
+
+  it('reports an invalid selector as a 400 before loading the page and keeps the browser', async () => {
+    const syntaxError = new Error("SyntaxError: Failed to execute 'querySelector' on 'Document': '#' is not a valid selector.")
+    pageProto.$.mockRejectedValueOnce(syntaxError)
+    const error = await capture(CaptureType.PDF, { url: 'https://example.com', waitForSelector: '#' }).catch((e) => e)
+    expect(error).toBeInstanceOf(TargetError)
+    expect(error.status).toBe(400)
+    expect(pageProto.goto).not.toHaveBeenCalled()
+    expect(contextProto.close).toHaveBeenCalled()
+    expect(browserProto.close).not.toHaveBeenCalled()
   })
 
   it('uses defaults as expected', async () => {

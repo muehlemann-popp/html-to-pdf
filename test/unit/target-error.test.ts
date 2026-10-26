@@ -10,6 +10,8 @@ describe('toTargetError', () => {
     ['Protocol error (Page.navigate): Cannot navigate to invalid URL', 400],
     ['net::ERR_UNSAFE_PORT at http://127.0.0.1:1', 400],
     ['net::ERR_UNKNOWN_URL_SCHEME at foo://bar', 400],
+    ["SyntaxError: Failed to execute 'querySelector' on 'Document': '#' is not a valid selector.", 400],
+    ["SyntaxError: Failed to execute 'evaluate' on 'Document': The string '//[' is not a valid XPath expression.", 400],
     ['net::ERR_NAME_NOT_RESOLVED at http://does-not-exist.invalid', 502],
     ['net::ERR_CONNECTION_REFUSED at http://localhost:4001', 502],
     ['net::ERR_CERT_DATE_INVALID at https://expired.badssl.com/', 502],
@@ -26,6 +28,7 @@ describe('toTargetError', () => {
   it('maps puppeteer timeouts to 504', () => {
     expect(statusOf(toTargetError(new TimeoutError('Navigation timeout of 1500 ms exceeded')))).toBe(504)
     expect(statusOf(toTargetError(new TimeoutError('Timed out after waiting 1500ms')))).toBe(504)
+    expect(statusOf(toTargetError(new TimeoutError('Waiting for selector `#pdf-ready` failed')))).toBe(504)
   })
 
   it('leaves service failures alone', () => {
