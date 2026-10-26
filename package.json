@@ -5,13 +5,10 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "start": "touch ./build/main.dev.js; npm-run-all --parallel --print-label watch:server watch:build",
+    "start": "node scripts/build.mjs --watch",
     "start:prod": "node ./build/main.prod.js",
-    "watch:server": "nodemon ./build/main.dev.js --watch ./build/main.dev.js",
-    "watch:build": "env-cmd -f .env.dev webpack --watch",
-    "build": "yarn build:prod",
-    "build:prod": "env-cmd -f .env.prod webpack",
-    "build:dev": "env-cmd -f .env.dev webpack",
+    "build": "tsc --noEmit && node scripts/build.mjs",
+    "build:dev": "node scripts/build.mjs --dev",
     "lint": "eslint ./",
     "test": "vitest run"
   },
@@ -33,7 +30,7 @@
     "@types/supertest": "^2.0.12",
     "@typescript-eslint/eslint-plugin": "^5.42.1",
     "@typescript-eslint/parser": "^5.42.1",
-    "env-cmd": "^10.1.0",
+    "esbuild": "0.28.2",
     "eslint": "^8.27.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-airbnb-typescript": "^17.0.0",
@@ -41,18 +38,11 @@
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-prettier": "^4.2.1",
-    "nodemon": "^2.0.20",
-    "npm-run-all": "^4.1.5",
     "prettier": "^2.7.1",
     "supertest": "^6.3.1",
-    "terser-webpack-plugin": "^5.6.1",
-    "ts-loader": "^9.6.2",
-    "ts-node": "^10.9.1",
     "typescript": "^6.0.3",
     "vite": "^8.3.4",
-    "vitest": "^5.0.3",
-    "webpack": "^5.111.1",
-    "webpack-cli": "^4.10.0"
+    "vitest": "^5.0.3"
   },
   "engines": {
     "node": "~26"
