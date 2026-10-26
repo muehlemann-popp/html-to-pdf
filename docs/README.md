@@ -65,6 +65,8 @@ you supersede them with a new file rather than rewriting them.
   the image renders with Alpine's `chromium-headless-shell` since Chromium 155.
 - [0002 — One shared browser with a context per request](adr/0002-shared-browser.md) — replaces the
   browser-per-request launch; its recycling rules and trade-offs.
+- [0003 — Opt-in Chromium sandbox](adr/0003-opt-in-chromium-sandbox.md) — `CHROME_SANDBOX=1`,
+  the seccomp profile it needs and why it is not the default yet.
 
 ### Plans
 
@@ -75,3 +77,5 @@ you supersede them with a new file rather than rewriting them.
 
 - [Chromium 155 memory and rendering](research/2026-10-26-chromium-155-memory.md) — Chromium 112
   vs 155 (full browser and headless shell): memory, latency and reference-PDF comparison.
+- [Chromium sandbox](research/2026-10-26-chromium-sandbox.md) — what the user-namespace sandbox
+  needs in a container and what it costs: seccomp, memory, latency, output.

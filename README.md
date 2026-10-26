@@ -15,11 +15,10 @@ dependencies managed by [yarn 4](https://yarnpkg.com/).
 The image runs Node 26 (LTS) and the Chromium package of its Alpine release (currently Alpine 3.24,
 Chromium 155), driven by the puppeteer release that targets the same Chromium major.
 
-⚠️ Disclaimer: chrome is run with `--no-sandbox` flag meaning it should **NOT** be run as a public service.
-It's only meant to be run as a microservice in your private network where you control **what** you are printing.
-See [puppeteer docs](https://pptr.dev/troubleshooting#setting-up-chrome-linux-sandbox)
-or [zenika/alpine-chrome](https://github.com/Zenika/alpine-chrome#3-ways-to-securely-use-chrome-headless-with-this-image)
-why we have `--no-sandbox`.
+⚠️ Disclaimer: this is **not** a public service. By default Chromium runs with `--no-sandbox`, so a
+page that exploits a Chromium bug runs code with the rights of the service. The
+[sandbox](#sandbox) can be turned on, but even then the browser loads any URL a page asks for,
+internal ones included. Run it in your private network, where you control **what** you are printing.
 
 
 ## <a name="images">Docker Images</a>
@@ -53,6 +52,71 @@ Optional environment variables:
 - `BROWSER_IDLE_TIMEOUT_MS`, default `30000`: the browser is closed after this long without requests
   and started again by the next one.
 - `SENTRY_DSN`, `ENV`, `RELEASE_ID`: error reporting to Sentry.
+- `CHROME_SANDBOX`, default off: `1` runs Chromium with its sandbox, which needs a seccomp profile,
+  see [Chromium sandbox](#sandbox).
+
+### <a name="sandbox">Chromium sandbox</a>
+
+With `CHROME_SANDBOX=1`, Chromium's renderers run in a sandbox: their own user, PID and network
+namespaces, an empty root directory and Chromium's own syscall filter. A page that exploits a renderer
+bug then cannot read the service's files, environment or processes. It costs no measurable memory
+or latency and does not change the output
+([measurements](docs/research/2026-10-26-chromium-sandbox.md)).
+
+It needs:
+
+- **The seccomp profile [`deploy/chrome-seccomp.json`](deploy/chrome-seccomp.json).** It is Docker's
+  default profile, plus `clone`/`unshare` for new user, PID and network namespaces and an unconditional
+  `chroot`. Under Docker's default profile Chromium cannot create the namespaces: the launch fails with
+  `No usable sandbox!`, `/selfcheck` and every capture answer `500`, and the service keeps restarting.
+  Do not use `seccomp=unconfined` or `CAP_SYS_ADMIN` instead: both take away far more of the
+  container's protection than the profile does.
+- **A host that allows unprivileged user namespaces.** Most do. It fails the same way if
+  `user.max_user_namespaces` is `0`, or if AppArmor restricts them (Ubuntu 23.10+,
+  `kernel.apparmor_restrict_unprivileged_userns`, see
+  [Chromium's notes](https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md)).
+- **A non-root user.** The image runs as `chrome` (uid 1001); Chromium refuses its sandbox as root.
+
+Docker (and Compose: `security_opt: ["seccomp=./chrome-seccomp.json"]`):
+
+```bash
+docker run -p 4000:4000 --env CHROME_SANDBOX=1 \
+  --security-opt seccomp=deploy/chrome-seccomp.json muehlemannpopp/html-to-pdf
+```
+
+Kubernetes: put the file on every node below the kubelet's seccomp directory, e.g.
+`/var/lib/kubelet/seccomp/profiles/chrome-seccomp.json` (by hand, with a DaemonSet or with the
+[Security Profiles Operator](https://github.com/kubernetes-sigs/security-profiles-operator)), and
+reference it from the pod. `--cap-drop ALL` and no privilege escalation work with it, so this also
+fits the `restricted` Pod Security Standard:
+
+```yaml
+spec:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1001
+    seccompProfile:
+      type: Localhost
+      localhostProfile: profiles/chrome-seccomp.json
+  containers:
+    - name: html-to-pdf
+      image: muehlemannpopp/html-to-pdf
+      env:
+        - name: CHROME_SANDBOX
+          value: "1"
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+```
+
+Check it with `GET /selfcheck` (it answers `500` if the sandbox cannot start); the log line
+`Browser launched: …, sandbox on` confirms the mode.
+
+⚠️ **The sandbox does not prevent SSRF.** The browser still loads whatever URL, redirect or
+subresource a page asks for, with the network of the container: internal hosts, services on
+`localhost` or in the cluster, and cloud metadata endpoints such as `169.254.169.254`. If callers are
+not trusted, restrict the container's outgoing traffic (network policy, egress firewall) as well.
 
 
 ## <a name="usage">Usage</a>

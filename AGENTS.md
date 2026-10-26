@@ -12,6 +12,8 @@ yarn test                     # vitest; acceptance tests need a Chromium (see be
 yarn build                    # webpack -> build/main.prod.js, the only file the image runs
 docker build --file deploy/Dockerfile --target test --tag html-to-pdf:test .
 docker run --rm html-to-pdf:test yarn test      # what CI runs, with the image's Chromium
+docker run --rm --env CHROME_SANDBOX=1 --security-opt seccomp=deploy/chrome-seccomp.json \
+  html-to-pdf:test yarn test                    # CI again, with the Chromium sandbox on
 node scripts/benchmark.mjs <image> <out-dir>    # memory/latency + reference outputs per image
 ```
 
@@ -42,4 +44,8 @@ point it at one with `PUPPETEER_EXECUTABLE_PATH`, or run tests in the `test` ima
   [ADR 0002](docs/adr/0002-shared-browser.md)). Never let a capture touch another request's context,
   and always release the lease, also on errors. Launch flags are measured: `--single-process` and
   `--in-process-gpu` crash Chromium 155; read ADR 0001/0002 before adding any.
+- The Chromium sandbox is opt-in (`CHROME_SANDBOX=1`, [ADR 0003](docs/adr/0003-opt-in-chromium-sandbox.md))
+  and needs `deploy/chrome-seccomp.json`; CI runs the suite in both modes, the `test` image runs as
+  `chrome` because Chromium refuses its sandbox as root. Keep both modes working, and re-derive the
+  profile from Docker's default rather than editing unrelated rules.
 - Conventional commit prefixes (`feat:`, `fix:`, `docs:`, `chore:`); one topic per pull request.

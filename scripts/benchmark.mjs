@@ -2,7 +2,7 @@
 // Memory and latency benchmark for an html-to-pdf docker image.
 //
 //   node scripts/benchmark.mjs <image> <out-dir> [--memory=1g] [--rounds=N] [--scenarios=simple,parallel8]
-//                              [--env=NAME=value ...]
+//                              [--env=NAME=value ...] [--security-opt=seccomp=deploy/chrome-seccomp.json ...]
 //
 // --memory sets a container limit: page cache gets reclaimed under it, so the lowest limit at which
 // no request fails is the real memory requirement, while memory.peak without a limit includes cache.
@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url'
 
 const [image, outDirArg, ...flags] = process.argv.slice(2)
 if (!image || !outDirArg) {
-  console.error('usage: node scripts/benchmark.mjs <image> <out-dir> [--memory=1g] [--rounds=N] [--env=NAME=value ...]')
+  console.error('usage: node scripts/benchmark.mjs <image> <out-dir> [--memory=1g] [--rounds=N] [--env=NAME=value ...] [--security-opt=… ...]')
   process.exit(2)
 }
 const option = (name, fallback) => flags.find((f) => f.startsWith(`--${name}=`))?.split('=')[1] ?? fallback
@@ -28,6 +28,8 @@ const rounds = Number(option('rounds', '10'))
 const env = ['BROWSER_IDLE_TIMEOUT_MS=1000',
   ...flags.filter((f) => f.startsWith('--env=')).map((f) => f.slice('--env='.length))]
 const idleTimeoutMs = Number(env.findLast((e) => e.startsWith('BROWSER_IDLE_TIMEOUT_MS=')).split('=')[1])
+// passed to `docker run` as is, e.g. the seccomp profile that CHROME_SANDBOX=1 needs
+const securityOpts = flags.filter((f) => f.startsWith('--security-opt='))
 const only = option('scenarios', '').split(',').filter(Boolean)
 const outDir = resolve(outDirArg)
 mkdirSync(outDir, { recursive: true })
@@ -101,7 +103,7 @@ const sampleAnon = (name) => {
 const run = async (scenario) => {
   const name = `html-to-pdf-bench-${process.pid}-${scenario}`
   docker('run', '-d', '--rm', '--name', name, '-p', `127.0.0.1:${port}:4000`,
-    ...(memoryLimit ? ['--memory', memoryLimit] : []), ...env.flatMap((e) => ['--env', e]), image)
+    ...(memoryLimit ? ['--memory', memoryLimit] : []), ...env.flatMap((e) => ['--env', e]), ...securityOpts, image)
   try {
     for (let i = 0; ; i += 1) {
       try { if ((await fetch(`${base}/health`)).ok) break } catch { /* not up yet */ }
@@ -145,6 +147,6 @@ for (const scenario of Object.keys(scenarios).filter((s) => !only.length || only
   report.push(r)
 }
 writeFileSync(join(outDir, 'report.json'), JSON.stringify({
-  image, versions, env, memoryLimit, rounds, report,
+  image, versions, env, securityOpts, memoryLimit, rounds, report,
 }, null, 2))
 console.table(report)

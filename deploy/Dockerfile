@@ -82,4 +82,9 @@ ENV \
 
 COPY . /app
 
+RUN chown -R chrome ./
+
+# as in prod: Chromium refuses to start its sandbox as root (CHROME_SANDBOX=1)
+USER chrome
+
 RUN yarn install
