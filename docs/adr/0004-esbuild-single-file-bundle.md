@@ -71,6 +71,13 @@ as an ES module because it is declared, not because its syntax detection guessed
 - The bundle is larger than webpack's (2.0 MB against 1.4 MB). Most of the difference is
   `iconv-lite`'s code-page tables that `body-parser` pulls in; they sit in CommonJS wrappers that only
   run when required.
+- Memory, measured per commit of the tooling change (anonymous memory of the idle node process in
+  the `prod` image, no browser started): 25 MiB on `main`, 26 as an ES module still built by webpack,
+  28 with esbuild, 33 after Sentry 10 (its OpenTelemetry modules are evaluated at import, with or
+  without a DSN). The same esbuild code as CommonJS uses 3 MiB less than as an ES module.
+  `scripts/benchmark.mjs`, two rounds per image: every scenario's anonymous peak is 7–13 MiB higher
+  (8 concurrent PDFs: 218–230 MiB before, 225–227 after), latency is the same within noise, and the
+  reference outputs are identical apart from the PDFs' creation dates.
 - `tsconfig.json` uses `moduleResolution: Bundler`: imports stay without file extensions, which is
   what esbuild and Vitest resolve.
 - The bundle still contains everything, so Sentry's auto-instrumentation of Express does not apply;
