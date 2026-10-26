@@ -1,7 +1,8 @@
-import { Configuration, IgnorePlugin } from 'webpack'
+import webpack, { type Configuration } from 'webpack'
 import { resolve } from 'path'
 import TerserPlugin from 'terser-webpack-plugin'
 
+const { IgnorePlugin } = webpack
 const isProdBuild: boolean = process.env.NODE_ENV === 'production'
 const buildSuffix: string = isProdBuild ? 'prod' : 'dev'
 
@@ -9,16 +10,18 @@ const config: Configuration = {
   entry: './src/server.ts',
   mode: isProdBuild ? 'production' : 'development',
   // We want to make sure we're not adding anything we don't need like browser libraries
-  target: 'async-node',
+  target: 'node',
+  // an ES module like the package itself ("type": "module")
+  experiments: { outputModule: true },
   output: {
-    path: resolve(__dirname, 'build'),
+    path: resolve(import.meta.dirname, 'build'),
     filename: `[name].${buildSuffix}.js`,
-    publicPath: '/',
-    // we need to target CommonJS, otherwise node cannot execute file
-    libraryTarget: 'commonjs2',
+    module: true,
+    chunkFormat: 'module',
+    library: { type: 'module' },
   },
   resolve: {
-    roots: [__dirname],
+    roots: [import.meta.dirname],
     extensions: ['.ts', '.js', '.json'],
     alias: {
       '~': resolve('src/'),
@@ -50,6 +53,8 @@ const config: Configuration = {
   externals: [
     isProdBuild ? {} : /^[a-z\-0-9]+$/, // Ignore node_modules folder
   ],
+  // required rather than imported: node cannot detect the named exports of every CommonJS package
+  externalsType: 'node-commonjs',
 }
 
 export default config

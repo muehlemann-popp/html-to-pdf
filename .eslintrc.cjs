@@ -38,7 +38,7 @@ module.exports = {
     },
   },
   ignorePatterns: [
-    '.eslintrc.js',
+    '.eslintrc.cjs',
     '.yarn',
     'build',
     'main.prod.js',

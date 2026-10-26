@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "homepage": "https://github.com/muehlemann-popp/html-to-pdf",
   "license": "MIT",
+  "type": "module",
   "scripts": {
     "start": "touch ./build/main.dev.js; npm-run-all --parallel --print-label watch:server watch:build",
     "start:prod": "node ./build/main.prod.js",
