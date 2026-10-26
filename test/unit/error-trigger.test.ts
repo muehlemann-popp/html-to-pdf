@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest'
 import { checkUnrecoverableError, registerUnrecoverableError } from '~/util/error-trigger'
 
 describe('Error trigger is persisted', () => {

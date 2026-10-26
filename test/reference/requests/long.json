@@ -1,0 +1,6 @@
+{
+  "endpoint": "/pdf",
+  "body": {
+    "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>@page{size:A4;margin:15mm}body{font-family:serif;font-size:11pt;line-height:1.5}h2{break-before:page}h2:first-of-type{break-before:auto}table{width:100%;border-collapse:collapse}td{border:1px solid #999;padding:2mm}</style></head><body><div id=\"root\"></div><script>var lorem='Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. ';var html='';for(var c=1;c<=30;c++){html+='<h2>Chapter '+c+'</h2>';for(var p=0;p<6;p++){html+='<p>'+lorem+lorem+'</p>'}html+='<table>';for(var r=0;r<8;r++){html+='<tr><td>Row '+r+'</td><td>'+(c*r)+'</td><td>'+lorem.slice(0,60)+'</td></tr>'}html+='</table>'}document.getElementById('root').innerHTML=html</script></body></html>"
+  }
+}

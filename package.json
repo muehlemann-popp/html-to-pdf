@@ -12,7 +12,7 @@
     "build:prod": "env-cmd -f .env.prod webpack",
     "build:dev": "env-cmd -f .env.dev webpack",
     "lint": "eslint ./",
-    "test": "jest --colors --runInBand"
+    "test": "vitest run"
   },
   "dependencies": {
     "@sentry/node": "^7.19.0",
@@ -23,17 +23,13 @@
     "express": "^4.18.2",
     "marked": "^4.2.2",
     "prom-client": "^14.1.0",
-    "puppeteer": "19.2.2",
-    "puppeteer-core": "19.2.2"
+    "puppeteer": "25.13.0",
+    "puppeteer-core": "25.13.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.14",
-    "@types/jest": "^29.2.2",
-    "@types/node": "^18.11.9",
+    "@types/node": "^24.19.2",
     "@types/supertest": "^2.0.12",
-    "@types/terser-webpack-plugin": "^5.0.4",
-    "@types/webpack": "^5.28.0",
-    "@types/webpack-node-externals": "^2.5.3",
     "@typescript-eslint/eslint-plugin": "^5.42.1",
     "@typescript-eslint/parser": "^5.42.1",
     "env-cmd": "^10.1.0",
@@ -41,23 +37,24 @@
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-airbnb-typescript": "^17.0.0",
     "eslint-config-prettier": "^8.5.0",
-    "eslint-import-resolver-ts": "^0.4.2",
+    "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-prettier": "^4.2.1",
-    "jest": "^29.3.1",
     "nodemon": "^2.0.20",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.7.1",
     "supertest": "^6.3.1",
-    "terser-webpack-plugin": "^5.3.6",
-    "ts-jest": "^29.0.3",
-    "ts-loader": "^9.4.1",
+    "terser-webpack-plugin": "^5.6.1",
+    "ts-loader": "^9.6.2",
     "ts-node": "^10.9.1",
-    "typescript": "^4.8.4",
-    "webpack": "^5.75.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3",
+    "webpack": "^5.111.1",
     "webpack-cli": "^4.10.0"
   },
   "engines": {
-    "node": "~16"
-  }
+    "node": "~24"
+  },
+  "packageManager": "yarn@4.18.1"
 }

@@ -1,6 +1,7 @@
 import { performance } from 'perf_hooks'
 import { Response } from 'express'
 import { captureException } from '@sentry/node'
+import { TargetError } from '~/util/target-error'
 import timestamp from '~/util/timestamp'
 
 export const logRequestTime = async <T> (
@@ -47,12 +48,19 @@ export const processRequestError = async <T> (
     result = await processRequest()
   } catch (e) {
     const err = e as Error
-    // eslint-disable-next-line no-console
-    console.error(
-      `[${timestamp()}] Error at ${requestInfo}. "${err.message}"\n${err.stack}`,
-    )
-    res.status(500).json({ status: 'error', message: err.message })
-    captureException(err)
+    if (err instanceof TargetError) {
+      // the caller's page failed, not the service: no stack trace, nothing for Sentry
+      // eslint-disable-next-line no-console
+      console.warn(`[${timestamp()}] ${err.status} at ${requestInfo}. "${err.message}"`)
+      res.status(err.status).json({ status: 'error', message: err.message })
+    } else {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[${timestamp()}] Error at ${requestInfo}. "${err.message}"\n${err.stack}`,
+      )
+      res.status(500).json({ status: 'error', message: err.message })
+      captureException(err)
+    }
     if (rethrow) {
       throw err
     }

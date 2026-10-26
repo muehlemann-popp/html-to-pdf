@@ -1,33 +1,57 @@
+import {
+  afterEach, beforeEach, describe, expect, it, vi,
+} from 'vitest'
 import puppeteer from 'puppeteer'
+import { closeBrowser } from '~/controller/browser'
 import capture, { defaultViewportOptions } from '~/controller/capture'
 import { CaptureType } from '~/interface'
+import { TargetError } from '~/util/target-error'
 
-const nil = null
-const pageProto = {
-  setContent: jest.fn().mockResolvedValue(nil),
-  setDefaultNavigationTimeout: jest.fn().mockResolvedValue(nil),
-  goto: jest.fn().mockResolvedValue(nil),
-  waitForNavigation: jest.fn().mockResolvedValue(nil),
-  evaluateHandle: jest.fn().mockResolvedValue(nil),
-  setViewport: jest.fn().mockResolvedValue(nil),
-  pdf: jest.fn().mockResolvedValue(nil),
-  screenshot: jest.fn().mockResolvedValue(nil),
-  close: jest.fn().mockResolvedValue(nil),
-}
+// vi.mock is hoisted above the imports, so everything its factory uses has to be hoisted too
+const { pageProto, contextProto, browserProto } = vi.hoisted(() => {
+  const nil = null
+  const page = {
+    setContent: vi.fn().mockResolvedValue(nil),
+    setDefaultNavigationTimeout: vi.fn().mockResolvedValue(nil),
+    goto: vi.fn().mockResolvedValue(nil),
+    waitForNetworkIdle: vi.fn().mockResolvedValue(nil),
+    evaluateHandle: vi.fn().mockResolvedValue(nil),
+    setViewport: vi.fn().mockResolvedValue(nil),
+    pdf: vi.fn().mockResolvedValue(nil),
+    screenshot: vi.fn().mockResolvedValue(nil),
+    close: vi.fn().mockResolvedValue(nil),
+  }
+  const context = {
+    newPage: vi.fn().mockResolvedValue(page),
+    close: vi.fn().mockResolvedValue(nil),
+  }
+  const browser = {
+    pages: vi.fn().mockResolvedValue([]),
+    version: vi.fn().mockResolvedValue('HeadlessChrome/155.0.0.0'),
+    createBrowserContext: vi.fn().mockResolvedValue(context),
+    on: vi.fn(),
+    close: vi.fn().mockResolvedValue(nil),
+  }
+  return { pageProto: page, contextProto: context, browserProto: browser }
+})
 
-const browserProto = {
-  newPage: jest.fn().mockResolvedValue(pageProto),
-  close: jest.fn().mockResolvedValue(nil),
-}
-
-jest.mock('puppeteer', () => ({
-  launch: jest.fn().mockImplementation(async () => browserProto),
+vi.mock('puppeteer', () => ({
+  default: {
+    launch: vi.fn().mockImplementation(async () => browserProto),
+  },
+  TimeoutError: class TimeoutError extends Error {},
 }))
 
 beforeEach(() => {
-  jest.mocked(puppeteer.launch).mockClear()
+  vi.spyOn(console, 'info').mockImplementation(() => undefined)
+  vi.mocked(puppeteer.launch).mockClear()
   Object.values(pageProto).forEach((v) => v.mockClear())
+  Object.values(contextProto).forEach((v) => v.mockClear())
   Object.values(browserProto).forEach((v) => v.mockClear())
+})
+
+afterEach(async () => {
+  await closeBrowser()
 })
 
 describe('capture', () => {
@@ -39,19 +63,47 @@ describe('capture', () => {
     expect(pageProto.goto).toHaveBeenCalledWith('about:blank', { waitUntil: ['load'] })
     expect(pageProto.pdf).toHaveBeenCalled()
     expect(pageProto.close).toHaveBeenCalled()
-    expect(browserProto.close).toHaveBeenCalled()
+    expect(contextProto.close).toHaveBeenCalled()
+    // the browser is shared between captures
+    expect(browserProto.close).not.toHaveBeenCalled()
   })
 
   it('prints html content', async () => {
     await capture(CaptureType.PDF, { html: '<html />' })
     expect(puppeteer.launch).toHaveBeenCalled()
-    expect(pageProto.setContent).toHaveBeenCalledWith('<html />')
-    expect(pageProto.waitForNavigation).toHaveBeenCalledWith({ waitUntil: ['load'] })
+    expect(pageProto.setContent).toHaveBeenCalledWith('<html />', { waitUntil: ['load'] })
+    expect(pageProto.waitForNetworkIdle).not.toHaveBeenCalled()
     expect(pageProto.goto).not.toHaveBeenCalled()
     expect(pageProto.evaluateHandle).toHaveBeenCalledWith('document.fonts.ready')
     expect(pageProto.pdf).toHaveBeenCalled()
     expect(pageProto.close).toHaveBeenCalled()
+    expect(contextProto.close).toHaveBeenCalled()
+  })
+
+  it('reports an unreachable url as a 502 and keeps the browser', async () => {
+    pageProto.goto.mockRejectedValueOnce(new Error('net::ERR_NAME_NOT_RESOLVED at http://does-not-exist.invalid'))
+    const error = await capture(CaptureType.PDF, { url: 'http://does-not-exist.invalid' }).catch((e) => e)
+    expect(error).toBeInstanceOf(TargetError)
+    expect(error.status).toBe(502)
+    expect(contextProto.close).toHaveBeenCalled()
+
+    await capture(CaptureType.PDF, {})
+    expect(puppeteer.launch).toHaveBeenCalledTimes(1)
+    expect(browserProto.close).not.toHaveBeenCalled()
+  })
+
+  it('replaces the browser when rendering itself fails', async () => {
+    pageProto.pdf.mockRejectedValueOnce(new Error('Protocol error (Page.printToPDF): Target closed'))
+    const error = await capture(CaptureType.PDF, {}).catch((e) => e)
+    expect(error).not.toBeInstanceOf(TargetError)
+    await new Promise((resolve) => { setImmediate(resolve) })
     expect(browserProto.close).toHaveBeenCalled()
+  })
+
+  it('waits for network idle separately when html is set', async () => {
+    await capture(CaptureType.PDF, { html: '<html />', waitUntil: ['load', 'networkidle2', 'networkidle0'] })
+    expect(pageProto.setContent).toHaveBeenCalledWith('<html />', { waitUntil: ['load'] })
+    expect(pageProto.waitForNetworkIdle).toHaveBeenCalledWith({ concurrency: 0, timeout: 60000 })
   })
 
   it('uses defaults as expected', async () => {

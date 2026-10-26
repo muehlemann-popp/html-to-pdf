@@ -1,5 +1,13 @@
+import {
+  afterAll, beforeAll, describe, expect, it,
+} from 'vitest'
+import { createServer } from 'node:http'
+import { AddressInfo } from 'node:net'
 import request from 'supertest'
 import app from '~/app'
+import { closeBrowser } from '~/controller/browser'
+
+afterAll(closeBrowser)
 
 async function downloadPDF(cb: (v: request.SuperTest<request.Test>) => request.Test): Promise<string> {
   const response = await cb(request(app))
@@ -20,8 +28,8 @@ async function downloadPDF(cb: (v: request.SuperTest<request.Test>) => request.T
 }
 
 function testPDFContent(content: string) {
-  expect(content).toContain('%PDF-1.4')
-  expect(content).toContain('/Creator (Chromium)')
+  expect(content).toMatch(/^%PDF-1\.\d/)
+  expect(content).toContain('/Producer (Skia/PDF')
   expect(content).toContain('%%EOF')
 }
 
@@ -63,6 +71,54 @@ describe('Basic routing', () => {
     const content: string = await downloadPDF((req) => req.get('/pdf?url=https://example.com'))
     testPDFContent(content)
     expect(content.length).toBeGreaterThan(2000)
+  })
+
+  // the service must answer these and keep running: vitest fails the run if process.exit is called
+  describe('pages that cannot be loaded', () => {
+    // accepts connections and never answers, so loading from it runs into the timeout
+    const silent = createServer(() => undefined)
+    const silentUrl = () => `http://127.0.0.1:${(silent.address() as AddressInfo).port}`
+    beforeAll(() => new Promise<void>((resolve) => { silent.listen(0, '127.0.0.1', resolve) }))
+    afterAll(() => {
+      silent.closeAllConnections()
+      silent.close()
+    })
+
+    it.each([
+      ['an unresolvable host', () => ({ url: 'http://does-not-exist.invalid' }), 502, /ERR_NAME_NOT_RESOLVED/],
+      ['a malformed url', () => ({ url: 'not a url' }), 400, /invalid URL/],
+      ['a blocked port', () => ({ url: 'http://127.0.0.1:1' }), 400, /ERR_UNSAFE_PORT/],
+      ['a navigation timeout', () => ({ url: silentUrl(), timeout: 1500 }), 504, /timeout/i],
+      [
+        'a network idle timeout',
+        () => ({ html: `<img src="${silentUrl()}/x.png">`, waitUntil: ['networkidle0'], timeout: 1500 }),
+        504,
+        /Timed out/,
+      ],
+    ])('answers %s with its status', async (_, body, status, message) => {
+      await request(app).post('/pdf').send(body())
+        .expect('Content-Type', /application\/json/)
+        .expect(status)
+        .expect((res) => {
+          expect(res.body.status).toBe('error')
+          expect(res.body.message).toMatch(message)
+        })
+    })
+
+    it('stays healthy and keeps printing afterwards', async () => {
+      await request(app).get('/health').expect(200)
+      const content: string = await downloadPDF((req) => req.get('/pdf'))
+      testBlankPDFContent(content)
+    })
+  })
+
+  it('/selfcheck should return ok', async () => {
+    await request(app).get('/selfcheck')
+      .expect('Content-Type', /application\/json/)
+      .expect(200)
+      .expect((res) => {
+        expect(res.body).toStrictEqual({ status: 'ok' })
+      })
   })
 
   it('/health should return ok', async () => {

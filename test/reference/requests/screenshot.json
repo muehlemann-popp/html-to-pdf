@@ -1,0 +1,7 @@
+{
+  "endpoint": "/screenshot",
+  "body": {
+    "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>body{margin:0;font-family:sans-serif}.card{margin:40px;padding:30px;border-radius:16px;background:linear-gradient(90deg,#0ea5e9,#22c55e);color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.3)}</style></head><body><div class=\"card\"><h1>Screenshot reference 📸</h1><p>Default viewport 1200×800, PNG, gradient and shadow. 中文 日本語</p></div></body></html>",
+    "screenshotOptions": { "fullPage": true }
+  }
+}

@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "target": "ES5",
+    "target": "ES2023",
     "module": "NodeNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "NodeNext",
     "lib": [
       "ESNext",
       "DOM"
@@ -13,12 +13,10 @@
     "strict": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "baseUrl": ".",
     "paths": {
-      "~/*": ["./src/*"],
-      "*": ["*", "@types/*"]
+      "~/*": ["./src/*"]
     },
-    "types": ["node", "jest"]
+    "types": ["node"]
   },
   "exclude": [
     "build",

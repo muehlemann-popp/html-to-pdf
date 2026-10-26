@@ -1,5 +1,4 @@
 ---
-version: "3.8"
 services:
   printer:
     image: muehlemann-popp/html-to-pdf

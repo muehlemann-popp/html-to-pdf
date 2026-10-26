@@ -1,0 +1,6 @@
+{
+  "endpoint": "/pdf",
+  "body": {
+    "html": "<!doctype html><html><head><meta charset=\"utf-8\"><link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400;700&display=block\"><style>@page{size:A4;margin:20mm}body{font-family:'Roboto Slab',serif;font-size:12pt}.hero{height:60mm;background:linear-gradient(135deg,#1e3a8a,#9333ea);color:#fff;padding:10mm;border-radius:6mm}.bg{height:40mm;background-image:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><circle cx='20' cy='20' r='12' fill='%23f59e0b'/></svg>\");background-repeat:repeat}.break{break-before:page}code{font-family:monospace}</style></head><body><div class=\"hero\"><h1>Rendering reference</h1><p>Web font (Roboto Slab), gradient background, CSS @page A4 with 20mm margins.</p></div><h2>Glyphs</h2><p>CJK: 中文字体测试 日本語のテキスト 한국어 텍스트</p><p>Emoji: 📄 ✅ 🚀 🇨🇭 👩‍💻</p><p>Monospace: <code>const pdf = await page.pdf()</code></p><h2>Background image</h2><div class=\"bg\"></div><div class=\"break\"><h2>Second page</h2><p>This heading must start on page 2 because of an explicit <code>break-before: page</code>.</p></div></body></html>"
+  }
+}

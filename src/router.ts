@@ -109,11 +109,12 @@ router.get('/selfcheck', async (req: Request, res: Response) => {
       html: '<html><body><p>test</p></body></html>',
       waitUntil: ['load'],
     })
-    const pdfStr = buffer.toString()
+    const pdfStr = Buffer.from(buffer).toString('latin1')
 
-    const ok = pdfStr.startsWith('%PDF-1.4')
-      && pdfStr.includes('/Creator (Chromium)')
-      && pdfStr.endsWith('%%EOF')
+    // Chromium's PDF writer is Skia, /Creator has been the user agent string since Chromium ~120
+    const ok = pdfStr.startsWith('%PDF-1.')
+      && pdfStr.includes('/Producer (Skia/PDF')
+      && pdfStr.trimEnd().endsWith('%%EOF')
 
     if (!ok) {
       throw new Error('Printed page does not match expectations')
