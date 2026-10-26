@@ -34,6 +34,8 @@ With the package now an ES module, the bundle has to be one too.
 - prod is minified and defines `process.env.NODE_ENV` as `"production"`, which webpack's production
   mode did implicitly and which, for example, keeps Express's default error page free of stack
   traces;
+- the page of `GET /` is rendered at build time (`scripts/readme-html.mjs`: `marked` plus an inline
+  stylesheet) and defined as the global `README_HTML`; `vitest.config.mts` defines it the same way;
 - `--dev` writes the same bundle unminified with a source map to `build/main.dev.js`;
 - `--watch` (`yarn start`) rebuilds the dev bundle on change and runs it with `node --watch`, which
   restarts it when the bundle changes.

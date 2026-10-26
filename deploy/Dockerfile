@@ -32,7 +32,6 @@ ENV \
 COPY deploy/local.conf /etc/fonts/local.conf
 COPY favicon.ico .
 COPY deploy/docker-entrypoint.sh /docker-entrypoint.sh
-COPY README.md .
 
 ENTRYPOINT ["tini", "--"]
 

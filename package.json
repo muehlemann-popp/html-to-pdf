@@ -31,6 +31,7 @@
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-import-x": "^4.17.1",
     "globals": "^17.13.0",
+    "marked": "^18.1.1",
     "prettier": "^3.9.10",
     "supertest": "^7.3.1",
     "typescript": "^6.0.3",

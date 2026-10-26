@@ -43,9 +43,15 @@ describe('Basic routing', () => {
   it('should display readme when opening root', async () => {
     await request(app)
       .get('/')
-      .expect('Content-Type', 'text/plain; charset=utf-8')
+      .expect('Content-Type', 'text/html; charset=utf-8')
       .expect(200)
       .expect(/Microservice for generating PDF and screenshots/)
+      .expect((res) => {
+        // rendered at build time, with the stylesheet inline instead of from a CDN
+        expect(res.text).toMatch(/<h2[^>]*>.*Setup.*<\/h2>/)
+        expect(res.text).toContain('<style>')
+        expect(res.text).not.toMatch(/<link /)
+      })
   })
 
   it('should serve the favicon', async () => {

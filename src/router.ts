@@ -1,5 +1,4 @@
 import { Request, Response, Router } from 'express'
-import fs from 'fs'
 import { register } from 'prom-client'
 import { CaptureMime, CaptureParameters, CaptureType } from '~/interface'
 import { pdfCounter, screenshotCounter } from '~/controller/metrics'
@@ -87,11 +86,11 @@ router.post('/screenshot', async (req: Request, res: Response) => {
 })
 
 /**
- * Print readme, as the markdown it is
+ * Print readme, rendered at build time (scripts/readme-html.mjs)
  */
 router.get('/', async (req: Request, res: Response) => {
   await logRequest('/', res, false, async () => {
-    res.status(200).type('text/plain; charset=utf-8').send(fs.readFileSync('README.md'))
+    res.status(200).type('html').send(README_HTML)
   })
 })
 

@@ -18,7 +18,7 @@ step is a reviewable pull request on its own.
 | A4 Patches and minors | done — prom-client 15, supertest 7, Prettier 3; webpack and its helpers removed |
 | A5 Puppeteer 19 → 25 | done — 25.13.0, chrome-headless-shell 155 |
 | A6 Express 4 → 5 | done — 5.3, `body-parser` removed |
-| A7 `marked` 4 → 18 | done — `marked` removed, `/` serves the README as plain text |
+| A7 `marked` 4 → 18 | done — 18, as a dev dependency: the README is rendered at build time |
 | A8 TypeScript 4.8 → 5.x + fix `tsconfig.json` | done — TypeScript 6.0 (not 5.x), `tsconfig.json` fixed |
 | A9 ESLint 8 → 10 (flat config) | done — ESLint 10.12, typescript-eslint recommended instead of airbnb |
 | A10 Jest 29 → 30, Yarn 3 → 4 | done — Yarn 4.18 with `node-modules`; Jest replaced by Vitest 5 |
@@ -88,7 +88,8 @@ no `marked`, minors. Findings that differ from the steps below:
 - **Prettier was never applied.** Lint registered `eslint-plugin-prettier` without enabling its
   rule, and the code is airbnb-formatted, so Prettier 3 needs no reformat commit; lint now enforces
   only what both styles agree on (no semicolons, single quotes, 120 columns).
-- **`marked` is gone**: `GET /` serves the README's Markdown as `text/plain`.
+- **`marked` only runs at build time**: `scripts/readme-html.mjs` renders the README with a small
+  inline stylesheet into the bundle, so the image needs neither `marked`, `README.md` nor a CDN.
 - **The `packageExtensions`** in `.yarnrc.yml` were redundant and are gone; so is `.npmversion`.
 - **Measured** with `scripts/benchmark.mjs` against `main`, two rounds each: reference outputs
   identical apart from the PDFs' creation dates, latency the same within noise, and 7–13 MiB more

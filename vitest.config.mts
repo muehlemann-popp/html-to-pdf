@@ -1,7 +1,10 @@
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
+import { readmeHtml } from './scripts/readme-html.mjs'
 
 export default defineConfig({
+  // as scripts/build.mjs does
+  define: { README_HTML: JSON.stringify(readmeHtml()) },
   resolve: {
     alias: { '~': fileURLToPath(new URL('./src', import.meta.url)) },
   },

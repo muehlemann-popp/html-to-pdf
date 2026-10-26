@@ -9,6 +9,7 @@
 // esbuild does not type-check: `yarn build` runs `tsc --noEmit` first.
 import { spawn } from 'node:child_process'
 import * as esbuild from 'esbuild'
+import { readmeHtml } from './readme-html.mjs'
 
 const watch = process.argv.includes('--watch')
 const dev = watch || process.argv.includes('--dev')
@@ -32,6 +33,12 @@ const options = {
   // optional peers that are only tried in a try/catch: proxy-agent by @puppeteer/browsers when downloading
   // a browser (we never do), bufferutil and utf-8-validate by ws (native addons, node 26 does not need them)
   external: ['proxy-agent', 'bufferutil', 'utf-8-validate'],
+  define: {
+    // the page of GET /, see scripts/readme-html.mjs; --watch renders it once, at start
+    README_HTML: JSON.stringify(readmeHtml()),
+    // express and others check it at runtime, the image never sets it (webpack's production mode did the same)
+    ...(dev ? {} : { 'process.env.NODE_ENV': '"production"' }),
+  },
   // dev bundles the dependencies as well: a build takes well under a second, and node could not import
   // every CommonJS package's named exports from node_modules
   ...(dev ? {
@@ -39,8 +46,6 @@ const options = {
   } : {
     minify: true,
     legalComments: 'none',
-    // express and others check it at runtime, the image never sets it (webpack's production mode did the same)
-    define: { 'process.env.NODE_ENV': '"production"' },
   }),
   logLevel: 'info',
 }
