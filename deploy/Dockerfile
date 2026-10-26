@@ -1,6 +1,6 @@
 # The Alpine release pins the Chromium major (3.24 ships Chromium 155), keep it in sync with
 # the puppeteer version in package.json, see AGENTS.md
-FROM node:24-alpine3.24 AS base
+FROM node:26-alpine3.24 AS base
 
 # chrome-headless-shell (the lightweight "old headless" build) of this Alpine release, not the full
 # browser: same Skia PDF output at about half the memory, see docs/adr/0001-chromium-headless-shell.md
@@ -13,6 +13,10 @@ RUN \
     font-wqy-zenhei \
   && apk add --no-cache \
     tini \
+  # node images ship no yarn since Node 26 (and no corepack since 25): corepack runs the yarn from
+  # `packageManager` in package.json, which then uses the release committed in .yarn/releases
+  && npm install --global corepack@0.36.0 \
+  && corepack enable yarn \
   && mkdir -p /app/build \
   && adduser -D chrome \
   && chown -R chrome:chrome /app
@@ -22,7 +26,8 @@ WORKDIR /app
 # Chromium comes from apk above, never let `yarn install` download another one
 ENV \
   PUPPETEER_SKIP_DOWNLOAD=1 \
-  PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-headless-shell
+  PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-headless-shell \
+  COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
 COPY deploy/local.conf /etc/fonts/local.conf
 COPY favicon.ico .

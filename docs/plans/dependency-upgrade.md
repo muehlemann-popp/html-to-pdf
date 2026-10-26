@@ -10,7 +10,7 @@ step is a reviewable pull request on its own.
 | Step | Status |
 | --- | --- |
 | A1 Capture reference PDFs from the current version | done — `test/reference/requests/` + `scripts/benchmark.mjs` |
-| A2 Node 19 → 24 (one version, three files) | done |
+| A2 Node 19 → 24 (one version, three files) | done — went to Node 26 instead, see Progress |
 | A3 Sentry 7 → 10 (delete `@sentry/tracing`) | pending |
 | A4 Patches and minors | partly — webpack 5.111, terser-webpack-plugin 5.6, ts-loader 9.6 |
 | A5 Puppeteer 19 → 25 | done — 25.13.0, chrome-headless-shell 155 |
@@ -31,6 +31,13 @@ Measurements are in [research: Chromium 155 memory](../research/2026-10-26-chrom
 the browser choice in [ADR 0001](../adr/0001-chromium-headless-shell.md). Findings that change this
 plan:
 
+- **Node 26, not 24.** Node 24 went into maintenance on 2026-10-20 and Node 26 becomes Active LTS
+  on 2026-10-28 (EOL 2029-04-30), so the target below is out of date. `node:26-alpine3.24` uses the
+  same Alpine release, so Chromium stays 155; measured against Node 24 the memory is the same within
+  noise and the reference output identical.
+  Node 26 images ship no Yarn (and Node ≥ 25 no Corepack), so the Dockerfile and `task init:yarn`
+  install Corepack 0.36 from npm, which runs the `packageManager` Yarn and the committed
+  `.yarn/releases` file.
 - **`main` could not build at all.** `font-wqy-zenhei` was removed from Alpine `edge/testing`
   (the risk A2 predicted); on Alpine 3.24 it is in `community`, so the `edge` repository is gone.
 - **Puppeteer 25 is ESM-only.** Webpack bundles it fine with `dynamicImportMode: 'eager'` (it

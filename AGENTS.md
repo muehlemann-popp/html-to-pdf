@@ -15,8 +15,10 @@ docker run --rm html-to-pdf:test yarn test      # what CI runs, with the image's
 node scripts/benchmark.mjs <image> <out-dir>    # memory/latency + reference outputs per image
 ```
 
-Locally, puppeteer never downloads a browser (`enableScripts: false`); point it at one with
-`PUPPETEER_EXECUTABLE_PATH`, or run tests in the `test` image.
+Node 26 (`.nvmrc`). Yarn comes from Corepack (`npm install --global corepack@0.36.0 && corepack
+enable yarn`), which runs the `packageManager` version and the release committed in `.yarn/releases`;
+never install Yarn classic. Locally, puppeteer never downloads a browser (`enableScripts: false`);
+point it at one with `PUPPETEER_EXECUTABLE_PATH`, or run tests in the `test` image.
 
 ## Rules
 

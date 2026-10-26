@@ -12,7 +12,7 @@ Written in [typescript](https://www.typescriptlang.org/)
 compiled by [webpack](https://webpack.js.org/) and
 dependencies managed by [yarn 4](https://yarnpkg.com/).
 
-The image runs Node 24 and the Chromium package of its Alpine release (currently Alpine 3.24,
+The image runs Node 26 (LTS) and the Chromium package of its Alpine release (currently Alpine 3.24,
 Chromium 155), driven by the puppeteer release that targets the same Chromium major.
 
 ⚠️ Disclaimer: chrome is run with `--no-sandbox` flag meaning it should **NOT** be run as a public service.
@@ -182,9 +182,16 @@ status that says whose problem it is:
 
 We are using [taskfile](https://taskfile.dev/) for running local commands. Run `task` to see a list of available commands.
 
-You can develop locally without the need to run docker container (`task start:local`). Node 24 is
-required (`.nvmrc`). Puppeteer does not download a browser (install scripts are disabled in
-`.yarnrc.yml`), so point it at a locally installed Chrome or Chromium, e.g. on macOS:
+You can develop locally without the need to run docker container (`task start:local`). Node 26 is
+required (`.nvmrc`). Node no longer ships `yarn` or `corepack`, so install Corepack once, which then
+runs the Yarn version pinned in `package.json` (`task init:yarn` does the same):
+
+```bash
+npm install --global corepack@0.36.0 && corepack enable yarn
+```
+
+Puppeteer does not download a browser (install scripts are disabled in `.yarnrc.yml`), so point it
+at a locally installed Chrome or Chromium, e.g. on macOS:
 
 ```bash
 export PUPPETEER_EXECUTABLE_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"

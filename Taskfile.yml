@@ -25,9 +25,9 @@ tasks:
       - bash -c '{{ .NODE_ENV }} nvm install'
 
   init:yarn:
-    desc: Install yarn
+    desc: Install yarn (via corepack, node ships neither since 26; same version as deploy/Dockerfile)
     cmds:
-      - bash -c '{{ .NODE_ENV }} npm install --global yarn'
+      - bash -c '{{ .NODE_ENV }} npm install --global corepack@0.36.0 && corepack enable yarn'
 
   init:local:
     desc: Init repository for local development
