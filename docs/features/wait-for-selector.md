@@ -2,10 +2,12 @@
 
 Issue: [#10](https://github.com/muehlemann-popp/html-to-pdf/issues/10)
 
-Callers that print React or other single-page apps need the page captured once the app has rendered,
-which happens after `load` and is not tied to network idleness. The optional request parameter
-`waitForSelector` lets them name an element the app adds when it is done (e.g. `#pdf-ready`); the
-capture waits until it is attached to the page. The user-facing contract is in the top-level
+Callers that print pages rendered by JavaScript (single-page apps in React, Vue, Angular, Svelte, …,
+or plain scripts) need the page captured once it has rendered, which happens after `load` and is not
+tied to network idleness. The optional request parameter `waitForSelector` lets them name an element
+the page adds when it is done; the capture waits until it is attached to the page. Nothing in the
+service is specific to a framework or to a name: `#pdf-ready`, used in the examples and tests, is
+only a convention the caller's page and request agree on. The user-facing contract is in the top-level
 `README.md` (`POST /pdf` parameters and "Errors").
 
 ## Contract

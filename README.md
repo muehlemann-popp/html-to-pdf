@@ -189,8 +189,10 @@ is provided `about:blank` will be printed.
     always awaited up to `load` at least; both waits together are bounded by `timeout`.
   
   - `waitForSelector: string`, optional. After loading (`waitUntil`), wait until an element matching
-    this selector is in the page, then capture. For pages that render after `load`, such as React or
-    other single-page apps. The element only has to be attached, not visible. CSS selectors and
+    this selector is in the page, then capture. For pages whose content is rendered by JavaScript after
+    `load`, with any framework (React, Vue, Angular, Svelte, …) or none. The selector is yours to
+    choose: the service knows nothing about `#pdf-ready` or any other name. The element only has to be
+    attached, not visible. CSS selectors and
     [puppeteer's selector extensions](https://pptr.dev/guides/page-interactions#selectors) (`::-p-text(…)`,
     `::-p-xpath(…)`, …) work. Loading and this wait together are bounded by `timeout`: a selector that
     does not appear in time is answered with `504`, an invalid one with `400`, see [Errors](#errors).
@@ -204,11 +206,12 @@ is provided `about:blank` will be printed.
    {"url": "https://example.com"}
    ```
   
-  A React app that is printed once it has rendered: it adds a marker element when its data is
-  loaded, and the request waits for it.
+  A page that is printed once it has rendered: when its data is loaded and rendered, it adds a marker
+  element (here `#pdf-ready`), from its framework's template or from plain JavaScript, and the request
+  waits for it.
   
-  ```jsx
-  {report && <div id="pdf-ready" hidden />}
+  ```js
+  document.body.insertAdjacentHTML('beforeend', '<div id="pdf-ready" hidden></div>')
   ```
   
   ```json

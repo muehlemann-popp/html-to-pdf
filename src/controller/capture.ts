@@ -135,7 +135,7 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       }))
     }
     if (waitForSelector) {
-      // e.g. an element a single-page app adds once it has rendered; attached is enough, visible is not required
+      // e.g. an element the page's scripts add once rendered; attached is enough, visible is not required
       await navigate('page.waitForSelector', () => page.waitForSelector(waitForSelector, {
         timeout: remaining(),
       }))

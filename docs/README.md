@@ -62,7 +62,7 @@ you supersede them with a new file rather than rewriting them.
 ### Features
 
 - [Waiting for a selector](features/wait-for-selector.md) — `waitForSelector`: capture once a page
-  (e.g. a single-page app) has added a marker element; shared timeout and error mapping.
+  rendered by JavaScript (any framework) has added a marker element; shared timeout and error mapping.
 
 ### ADRs
 
