@@ -1,5 +1,4 @@
 import { Request, Response, Router } from 'express'
-import { marked } from 'marked'
 import fs from 'fs'
 import { register } from 'prom-client'
 import { CaptureMime, CaptureParameters, CaptureType } from '~/interface'
@@ -88,14 +87,11 @@ router.post('/screenshot', async (req: Request, res: Response) => {
 })
 
 /**
- * Print readme
+ * Print readme, as the markdown it is
  */
 router.get('/', async (req: Request, res: Response) => {
   await logRequest('/', res, false, async () => {
-    const content = marked(fs.readFileSync('README.md').toString())
-    const css = 'https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/slate/bootstrap.min.css'
-    const link = `<link rel="stylesheet" href="${css}" crossorigin="anonymous" />`
-    res.status(200).send(`<html><head>${link}</head><body><div class="container p-5">${content}</div></body></html>`)
+    res.status(200).type('text/plain; charset=utf-8').send(fs.readFileSync('README.md'))
   })
 })
 

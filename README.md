@@ -231,7 +231,7 @@ is provided `about:blank` will be printed.
 
 - <a name="root">`GET /`</a>
   
-  Prints this readme
+  Prints this readme as plain text (`text/plain`, the Markdown source)
 
 ### <a name="errors">Errors</a>
 

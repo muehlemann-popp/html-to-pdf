@@ -43,7 +43,7 @@ describe('Basic routing', () => {
   it('should display readme when opening root', async () => {
     await request(app)
       .get('/')
-      .expect('Content-Type', /text\/html/)
+      .expect('Content-Type', 'text/plain; charset=utf-8')
       .expect(200)
       .expect(/Microservice for generating PDF and screenshots/)
   })

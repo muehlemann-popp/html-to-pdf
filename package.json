@@ -14,9 +14,7 @@
   },
   "dependencies": {
     "@sentry/node": "^10.76.2",
-    "@types/marked": "^4.0.7",
     "express": "5.3.0",
-    "marked": "^4.2.2",
     "prom-client": "^14.1.0",
     "puppeteer": "25.13.0",
     "puppeteer-core": "25.13.0"
