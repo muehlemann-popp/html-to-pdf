@@ -1,25 +1,33 @@
-ARG RELEASE_ID
-ARG CI_BUILD_DATE
+# The Alpine release pins the Chromium major (3.24 ships Chromium 155), keep it in sync with
+# the puppeteer version in package.json, see AGENTS.md
+FROM node:26-alpine3.24 AS base
 
-FROM node:19-alpine as base
-
-# Installs latest Chromium package.
+# chrome-headless-shell (the lightweight "old headless" build) of this Alpine release, not the full
+# browser: same Skia PDF output at about half the memory, see docs/adr/0001-chromium-headless-shell.md
 RUN \
   apk upgrade --no-cache --available \
   && apk add --no-cache \
-    chromium \
-    ttf-freefont \
+    chromium-headless-shell \
+    font-freefont \
     font-noto-emoji \
-  && apk add --no-cache \
-    --repository=https://dl-cdn.alpinelinux.org/alpine/edge/testing \
     font-wqy-zenhei \
   && apk add --no-cache \
-    tini make gcc g++ python3 git \
+    tini \
+  # node images ship no yarn since Node 26 (and no corepack since 25): corepack runs the yarn from
+  # `packageManager` in package.json, which then uses the release committed in .yarn/releases
+  && npm install --global corepack@0.36.0 \
+  && corepack enable yarn \
   && mkdir -p /app/build \
   && adduser -D chrome \
   && chown -R chrome:chrome /app
 
 WORKDIR /app
+
+# Chromium comes from apk above, never let `yarn install` download another one
+ENV \
+  PUPPETEER_SKIP_DOWNLOAD=1 \
+  PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-headless-shell \
+  COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
 COPY deploy/local.conf /etc/fonts/local.conf
 COPY favicon.ico .
@@ -32,21 +40,14 @@ EXPOSE 4000
 CMD ["/docker-entrypoint.sh"]
 
 
-FROM base as builder
-
-ENV PUPPETEER_SKIP_DOWNLOAD=1
+FROM base AS builder
 
 COPY . /app
 
 RUN yarn install && yarn build
 
 
-FROM base as prod
-
-ENV \
-  CHROME_BIN=/usr/bin/chromium-browser \
-  CHROME_PATH=/usr/lib/chromium/ \
-  PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+FROM base AS prod
 
 COPY --from=builder /app/build/main.prod.js .
 
@@ -54,12 +55,11 @@ COPY --from=builder /app/build/main.prod.js .
 USER chrome
 
 
-FROM base as dev
+FROM base AS dev
 
+ARG RELEASE_ID
+ARG CI_BUILD_DATE
 ENV \
-  CHROME_BIN=/usr/bin/chromium-browser \
-  CHROME_PATH=/usr/lib/chromium/ \
-  PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
   RELEASE_ID=$RELEASE_ID \
   CI_BUILD_DATE=$CI_BUILD_DATE
 
@@ -72,12 +72,11 @@ USER chrome
 RUN yarn install
 
 
-FROM base as test
+FROM base AS test
 
+ARG RELEASE_ID
+ARG CI_BUILD_DATE
 ENV \
-  CHROME_BIN=/usr/bin/chromium-browser \
-  CHROME_PATH=/usr/lib/chromium/ \
-  PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
   RELEASE_ID=$RELEASE_ID \
   CI_BUILD_DATE=$CI_BUILD_DATE
 

@@ -1,4 +1,4 @@
-import { Configuration } from 'webpack'
+import { Configuration, IgnorePlugin } from 'webpack'
 import { resolve } from 'path'
 import TerserPlugin from 'terser-webpack-plugin'
 
@@ -25,6 +25,10 @@ const config: Configuration = {
     },
   },
   module: {
+    parser: {
+      // puppeteer lazy-loads some modules with `import()`, inline them to keep a single output file
+      javascript: { dynamicImportMode: 'eager' },
+    },
     rules: [{
       test: /\.ts$/,
       use: 'ts-loader',
@@ -36,6 +40,11 @@ const config: Configuration = {
   optimization: {
     minimizer: [new TerserPlugin({ extractComments: false })],
   },
+  plugins: [
+    // optional peers that are only tried in a try/catch: proxy-agent by @puppeteer/browsers when downloading
+    // a browser (we never do), bufferutil and utf-8-validate by ws (native addons, node 24 does not need them)
+    new IgnorePlugin({ resourceRegExp: /^(proxy-agent|bufferutil|utf-8-validate)$/ }),
+  ],
   // we better bundle everything into 1 script file to ease docker image creation, thus commented out below
   // cannot use optimize.LimitChunkCountPlugin because of https://stackoverflow.com/a/73318866/2848264
   externals: [

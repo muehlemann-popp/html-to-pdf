@@ -3,18 +3,20 @@ import puppeteer, {
   Page,
   PDFOptions,
   PuppeteerLifeCycleEvent,
+  SetContentWaitForOptions,
   Viewport,
 } from 'puppeteer'
 
-import Buffer from 'buffer'
+import { acquireContext, Lease } from '~/controller/browser'
 import { CaptureParameters, CaptureType } from '~/interface'
+import { TargetError, toTargetError } from '~/util/target-error'
 import timestamp from '~/util/timestamp'
 
 export const defaultUrl = 'about:blank'
 
 export const defaultNavigationTimeout = 60000
 
-// see https://pptr.dev/#?product=Puppeteer&version=v9.1.0&show=api-pagepdfoptions
+// see https://pptr.dev/api/puppeteer.pdfoptions
 const defaultPDFOptions: PDFOptions = {
   printBackground: true,
   preferCSSPageSize: true,
@@ -34,6 +36,11 @@ export const defaultViewportOptions: Viewport = {
 
 const debugUsingBrowserless = process.env.BROWSERLESS === '1'
 const defaultWaitUntil: PuppeteerLifeCycleEvent[] = ['domcontentloaded', 'load', 'networkidle2', 'networkidle0']
+// same thresholds puppeteer uses for networkidle0/networkidle2 on navigation
+const networkIdleConcurrency: Partial<Record<PuppeteerLifeCycleEvent, number>> = {
+  networkidle0: 0,
+  networkidle2: 2,
+}
 
 export const logException = async <T> (when: string, process: () => Promise<T>): Promise<T> => {
   try {
@@ -47,60 +54,39 @@ export const logException = async <T> (when: string, process: () => Promise<T>):
   }
 }
 
-/**
- We trust the content we open in Chrome, so we can launch Chrome with the --no-sandbox argument.
- Generally running without a sandbox is strongly discouraged. Consider configuring a sandbox instead!
- @see: https://github.com/GoogleChrome/puppeteer/blob/master/docs/troubleshooting.md
-*/
-export default async (captureType: CaptureType, params: CaptureParameters): Promise<Buffer> => {
+// loading what the caller asked for: its failures are the caller's, see ~/util/target-error
+const navigate = async (when: string, process: () => Promise<unknown>): Promise<void> => {
+  try {
+    await logException(when, process)
+  } catch (e) {
+    throw toTargetError(e)
+  }
+}
+
+export default async (captureType: CaptureType, params: CaptureParameters): Promise<Uint8Array> => {
   let browser: Browser | null = null
+  let lease: Lease | null = null
+  let failed = true
   if (!params) {
     throw new Error('Capture parameters should be defined')
   }
   try {
+    let page: Page
     if (debugUsingBrowserless) {
       browser = await logException(
         'puppeteer.connect',
         () => puppeteer.connect({ browserWSEndpoint: process.env.BROWSERLESS_URL }),
       )
+      page = await logException('browser.newPage', () => (browser as Browser).newPage())
     } else {
-      browser = await logException('puppeteer.launch', () => puppeteer.launch({
-        headless: true, // we want to run headless chrome
-        // We try to solve issues with google chrome sometimes stopping to work
-        // As suggested here we try to use pipe instead of websocket: https://github.com/puppeteer/puppeteer/issues/2735
-        // pipe: true,
-        args: [
-          '--disable-accelerated-2d-canvas',
-          '--disable-background-networking',
-          '--disable-background-timer-throttling',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-breakpad',
-          '--disable-component-extensions-with-background-pages',
-          '--disable-dev-shm-usage',
-          '--disable-extensions',
-          '--disable-features=TranslateUI,BlinkGenPropertyTrees,IsolateOrigins,site-per-process',
-          '--disable-gpu',
-          '--disable-infobars',
-          '--disable-ipc-flooding-protection',
-          '--disable-notifications',
-          '--disable-setuid-sandbox',
-          '--enable-features=NetworkService,NetworkServiceInProcess',
-          '--font-render-hinting=none',
-          '--hide-scrollbars',
-          '--mute-audio',
-          '--no-first-run',
-          '--no-sandbox', // see above
-          '--no-zygote', // this together with single process adds about 30% of speed
-          '--safebrowsing-disable-auto-update',
-          '--single-process',
-        ],
-      }))
+      lease = await logException('browser.createBrowserContext', acquireContext)
+      const { context } = lease
+      page = await logException('context.newPage', () => context.newPage())
     }
     const {
       url, html, pdfOptions, viewport, screenshotOptions,
     } = params
 
-    const page: Page = await logException('browser.newPage', () => (browser as Browser).newPage())
     page.setDefaultNavigationTimeout(params.timeout || defaultNavigationTimeout)
     if (viewport || captureType === CaptureType.Screenshot) {
       await logException(
@@ -111,14 +97,29 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
 
     const waitUntil = params.waitUntil || (url ? defaultWaitUntil : ['load'])
     if (html) {
-      const loaded = logException('page.waitForNavigation', () => page.waitForNavigation({
-        waitUntil,
-      }))
+      // setContent does not navigate, so it only accepts lifecycle events of the document itself;
+      // network idleness is awaited separately with the strictest requested threshold
+      const lifecycle = waitUntil.filter(
+        (event) => networkIdleConcurrency[event] === undefined,
+      ) as Exclude<SetContentWaitForOptions['waitUntil'], undefined | string>
+      const idle = waitUntil.map((event) => networkIdleConcurrency[event])
+        .filter((concurrency): concurrency is number => concurrency !== undefined)
+      // both waits share the caller's timeout (the page's navigation timeout), as one navigation would
+      const deadline = Date.now() + (params.timeout || defaultNavigationTimeout)
 
-      await logException('page.setContent', () => page.setContent(html))
-      await loaded
+      // an empty list would not wait for the document at all, only an omitted one defaults to load
+      await navigate('page.setContent', () => page.setContent(html, {
+        waitUntil: lifecycle.length ? lifecycle : ['load'],
+      }))
+      if (idle.length) {
+        await navigate('page.waitForNetworkIdle', () => page.waitForNetworkIdle({
+          concurrency: Math.min(...idle),
+          // at least 1 ms: 0 would disable the timeout
+          timeout: Math.max(deadline - Date.now(), 1),
+        }))
+      }
     } else {
-      await logException('page.goto', () => page.goto(url || defaultUrl, {
+      await navigate('page.goto', () => page.goto(url || defaultUrl, {
         waitUntil,
       }))
     }
@@ -127,7 +128,7 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       () => page.evaluateHandle('document.fonts.ready'),
     )
 
-    let buffer: Buffer
+    let buffer: Uint8Array
     if (captureType === CaptureType.Screenshot) {
       if (screenshotOptions?.emulateMediaType) {
         await logException(
@@ -142,7 +143,7 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       buffer = await logException(
         'page.screenshot',
         () => page.screenshot({ ...screenshotOptions || {}, encoding: 'binary' }),
-      ) as Buffer
+      )
     } else {
       // never save files to disk locally
       if (pdfOptions?.path) {
@@ -154,10 +155,20 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       )
     }
     await logException('page.close', () => page.close())
+    failed = false
     return buffer
+  } catch (e) {
+    // the requested page failed, the browser is fine and stays in use
+    if (e instanceof TargetError) {
+      failed = false
+    }
+    throw e
   } finally {
     // prevent zombies
     await logException('browser.close', async () => {
+      if (lease) {
+        await lease.release(failed)
+      }
       if (browser) {
         await browser.close()
       }

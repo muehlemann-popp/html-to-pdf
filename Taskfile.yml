@@ -10,7 +10,7 @@ vars:
     [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh";
     [ -s "/usr/local/opt/nvm/nvm.sh" ] && . "/usr/local/opt/nvm/nvm.sh";
     nvm use;
-  COMPOSE: docker-compose --file deploy/docker-compose.yml
+  COMPOSE: docker compose --file deploy/docker-compose.yml
 
 env:
   DOCKER_TARGET: dev
@@ -25,9 +25,9 @@ tasks:
       - bash -c '{{ .NODE_ENV }} nvm install'
 
   init:yarn:
-    desc: Install yarn
+    desc: Install yarn (via corepack, node ships neither since 26; same version as deploy/Dockerfile)
     cmds:
-      - bash -c '{{ .NODE_ENV }} npm install --global yarn'
+      - bash -c '{{ .NODE_ENV }} npm install --global corepack@0.36.0 && corepack enable yarn'
 
   init:local:
     desc: Init repository for local development
@@ -75,7 +75,7 @@ tasks:
   test:
     desc: Run tests in docker
     cmds:
-      - docker-compose --file deploy/docker-compose.test.yml up --build
+      - docker compose --file deploy/docker-compose.test.yml up --build
 
   test:local:
     desc: Run tests locally

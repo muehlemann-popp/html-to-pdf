@@ -1,0 +1,6 @@
+{
+  "endpoint": "/pdf",
+  "body": {
+    "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>body{font-family:sans-serif;margin:2cm}h1{color:#234}</style></head><body><h1>Invoice 2026-0042</h1><p>A single-page document: the ordinary case. Plain text, a heading and a small table.</p><table border=\"1\" cellpadding=\"6\" style=\"border-collapse:collapse\"><tr><th>Item</th><th>Qty</th><th>Price</th></tr><tr><td>Consulting</td><td>3</td><td>1200.00</td></tr><tr><td>Hosting</td><td>1</td><td>80.00</td></tr></table></body></html>"
+  }
+}

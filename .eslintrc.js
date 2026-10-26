@@ -22,6 +22,7 @@ module.exports = {
     semi: ['error', 'never'],
     '@typescript-eslint/semi': ['error', 'never'],
     'max-len': ['error', 120],
+    'import/no-extraneous-dependencies': ['error', { devDependencies: ['test/**', '*.config.{ts,mts}'] }],
   },
   settings: {
     'import/parsers': {
@@ -29,14 +30,10 @@ module.exports = {
     },
     'import/resolver': {
       // use <root>/tsconfig.json
-      ts: {
+      typescript: {
         // always try to resolve types under `<root/>@types` directory
         // even it doesn't contain any source code, like `@types/unist`
         alwaysTryTypes: true,
-      },
-      alias: {
-        map: [['~', './src/']],
-        extensions: ['.ts', '.js'],
       },
     },
   },

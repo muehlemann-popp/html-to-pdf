@@ -1,6 +1,7 @@
 # Dependency upgrade plan
 
-**Status:** not started.
+**Status:** in progress — the Chromium step (A1, A2, A5 and the parts of A4/A8/A10 they forced)
+landed together on branch `feat/chromium-155`; see [Progress](#progress-2026-10-26).
 
 Every runtime dependency of this service is several majors behind, and the Node line it builds on
 has been out of support since 2023. This plan is the ordered route back to current, split so each
@@ -8,17 +9,58 @@ step is a reviewable pull request on its own.
 
 | Step | Status |
 | --- | --- |
-| A1 Capture reference PDFs from the current version | pending |
-| A2 Node 19 → 24 (one version, three files) | pending |
+| A1 Capture reference PDFs from the current version | done — `test/reference/requests/` + `scripts/benchmark.mjs` |
+| A2 Node 19 → 24 (one version, three files) | done — went to Node 26 instead, see Progress |
 | A3 Sentry 7 → 10 (delete `@sentry/tracing`) | pending |
-| A4 Patches and minors | pending |
-| A5 Puppeteer 19 → 25 | pending |
+| A4 Patches and minors | partly — webpack 5.111, terser-webpack-plugin 5.6, ts-loader 9.6 |
+| A5 Puppeteer 19 → 25 | done — 25.13.0, chrome-headless-shell 155 |
 | A6 Express 4 → 5 | pending |
 | A7 `marked` 4 → 18 | pending |
-| A8 TypeScript 4.8 → 5.x + fix `tsconfig.json` | pending |
-| A9 ESLint 8 → 10 (flat config) | pending |
-| A10 Jest 29 → 30, Yarn 3 → 4 | pending |
+| A8 TypeScript 4.8 → 5.x + fix `tsconfig.json` | done — TypeScript 6.0 (not 5.x), `tsconfig.json` fixed |
+| A9 ESLint 8 → 10 (flat config) | pending (import resolver already swapped) |
+| A10 Jest 29 → 30, Yarn 3 → 4 | done — Yarn 4.18 with `node-modules`; Jest replaced by Vitest 5 |
 | A11 CI actions bump + release | pending |
+
+**All versions are subject to the two-week age gate** (`npmMinimalAgeGate: 20160` in
+`.yarnrc.yml`, the same rule as the other m+p repositories): the "latest" versions named below
+are a snapshot, the version to install is the newest one that is at least 14 days old.
+
+## Progress (2026-10-26)
+
+Measurements are in [research: Chromium 155 memory](../research/2026-10-26-chromium-155-memory.md),
+the browser choice in [ADR 0001](../adr/0001-chromium-headless-shell.md). Findings that change this
+plan:
+
+- **Node 26, not 24.** Node 24 went into maintenance on 2026-10-20 and Node 26 becomes Active LTS
+  on 2026-10-28 (EOL 2029-04-30), so the target below is out of date. `node:26-alpine3.24` uses the
+  same Alpine release, so Chromium stays 155; measured against Node 24 the memory is the same within
+  noise and the reference output identical.
+  Node 26 images ship no Yarn (and Node ≥ 25 no Corepack), so the Dockerfile and `task init:yarn`
+  install Corepack 0.36 from npm, which runs the `packageManager` Yarn and the committed
+  `.yarn/releases` file.
+- **`main` could not build at all.** `font-wqy-zenhei` was removed from Alpine `edge/testing`
+  (the risk A2 predicted); on Alpine 3.24 it is in `community`, so the `edge` repository is gone.
+- **Puppeteer 25 is ESM-only.** Webpack bundles it fine with `dynamicImportMode: 'eager'` (it
+  lazy-loads modules, which otherwise produces extra chunk files the image never copies). Jest is
+  what does not cope, so A10 became Jest → Vitest instead of Jest 29 → 30.
+- **TypeScript ≥ 5.9 and Yarn 3.** Yarn 3.2's PnP patch for TypeScript cannot patch 5.9+, which
+  forced Yarn 4 early. Yarn now uses `nodeLinker: node-modules` and `enableScripts: false` like the
+  other m+p repositories; the `ws` → `bufferutil`/`utf-8-validate` package extension is gone (native
+  addons that did not compile on Node 24, and Node 24 does not need them), and with it the compiler
+  toolchain in the image.
+- **TypeScript 6, not 5.x.** Under the age gate the newest TypeScript is 7.0 (native compiler,
+  out of scope below); 6.0 is the last JS-API release. It deprecates `baseUrl`, which in turn
+  broke `eslint-import-resolver-ts`; replaced by `eslint-import-resolver-typescript`.
+- **`--single-process` crashes Chromium 155**, full browser and headless shell alike. Without it
+  every request runs 5–8 processes; that memory cost decided ADR 0001 (headless shell) and ADR 0002
+  (one shared browser instead of a launch per request — the "rewriting the launch args" item below
+  is therefore done, measured, rather than out of scope).
+- **`setContent()` no longer accepts `networkidle0`/`networkidle2`** and no longer navigates, so
+  the `waitForNavigation()` pattern A5 warned about is replaced by `setContent(html, { waitUntil })`
+  plus `waitForNetworkIdle()` for the idle events.
+- **`/selfcheck`**: the full browser writes the user agent into `/Creator`, and every build ends the
+  file with `%%EOF\n`. The check now asserts `%PDF-1.`, `/Producer (Skia/PDF` and a trimmed
+  `%%EOF`.
 
 Snapshot taken 2026-08-28 against `main` (`4e3b4b6`). Every "latest" below was read from the npm
 registry on that date; every change marked **confirmed** was read from the upstream migration

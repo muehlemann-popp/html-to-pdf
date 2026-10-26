@@ -1,4 +1,7 @@
 /* eslint-disable no-console */
+import {
+  describe, expect, it, vi,
+} from 'vitest'
 import { logException } from '~/controller/capture'
 
 describe('logException', () => {
@@ -9,7 +12,7 @@ describe('logException', () => {
   })
 
   it('logs when promise throws', async () => {
-    const consoleErrorMock = jest.spyOn(console, 'error').mockImplementation()
+    const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const promise = async () => { throw new Error('test') }
 
     await expect(logException('test', promise)).rejects.toEqual(new Error('test'))

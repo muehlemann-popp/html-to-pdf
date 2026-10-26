@@ -59,7 +59,19 @@ you supersede them with a new file rather than rewriting them.
 
 ## Index
 
+### ADRs
+
+- [0001 — chrome-headless-shell, not the full browser](adr/0001-chromium-headless-shell.md) — why
+  the image renders with Alpine's `chromium-headless-shell` since Chromium 155.
+- [0002 — One shared browser with a context per request](adr/0002-shared-browser.md) — replaces the
+  browser-per-request launch; its recycling rules and trade-offs.
+
 ### Plans
 
 - [Dependency upgrade](plans/dependency-upgrade.md) — the phased plan out of Node 19 /
   Puppeteer 19 / Express 4 / Sentry 7, with the four confirmed hard breaks called out.
+
+### Research
+
+- [Chromium 155 memory and rendering](research/2026-10-26-chromium-155-memory.md) — Chromium 112
+  vs 155 (full browser and headless shell): memory, latency and reference-PDF comparison.
