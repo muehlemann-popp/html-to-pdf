@@ -142,6 +142,8 @@ describe('Basic routing', () => {
       ],
       ['an invalid selector', () => ({ html: '<p>x</p>', waitForSelector: 'a[' }), 400, /is not a valid selector/],
       ['an invalid XPath selector', () => ({ waitForSelector: '::-p-xpath(//[)' }), 400, /not a valid XPath/],
+      // thrown as a plain Error, it used to take the retry and make the process exit
+      ['an unknown puppeteer selector', () => ({ waitForSelector: '::-p-madeup' }), 400, /Unknown selector type/],
       ['an empty selector', () => ({ waitForSelector: '' }), 400, /non-empty string/],
       ['a selector that is not a string', () => ({ waitForSelector: ['#pdf-ready'] }), 400, /non-empty string/],
     ])('answers %s with its status', async (_, body, status, message) => {

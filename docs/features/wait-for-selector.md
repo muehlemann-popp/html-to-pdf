@@ -19,6 +19,11 @@ only a convention the caller's page and request agree on. The user-facing contra
   `hidden` marker works.
 - Any selector `page.waitForSelector` accepts works, including puppeteer's `::-p-…` extensions and the
   `xpath/`, `text/`, `aria/`, `pierce/` prefixes.
+- The status reveals whether the selector matched the loaded page, also parts that are never printed
+  (hidden inputs, `<meta>`, inline scripts). Restricting it to plain `#id` / `.class` markers would
+  close that, but was weighed against keeping CSS and XPath and not done: anyone who can reach the
+  service can already make it load internal URLs and read them printed (the README's SSRF warning,
+  which documents this as well).
 
 ## How it works (`src/controller/capture.ts`)
 
@@ -28,8 +33,11 @@ only a convention the caller's page and request agree on. The user-facing contra
    after a minute by default). `page.$` throws the browser's `SyntaxError` at once
    (`SyntaxError: Failed to execute 'querySelector' on 'Document': '#' is not a valid selector.`, or
    `'evaluate'` for XPath). `toTargetError` (`src/util/target-error.ts`) maps that message to a `400`
-   `TargetError`, so it is neither retried nor treated as a broken browser. Unknown `::-p-…` pseudo
-   elements are not syntax errors for puppeteer, they never match and end in a `504`.
+   `TargetError`, so it is neither retried nor treated as a broken browser. An unknown `::-p-…`
+   extension (`::-p-madeup`, also a bare `::-p-`) is no `SyntaxError`: puppeteer's script in the page
+   throws a plain `Error: Unknown selector type: madeup`, which `toTargetError` maps to `400` as well.
+   Unmapped, it would take the service-failure path (retry, `500`, process exit) on every such
+   request.
 2. **Load** the page as before: `page.setContent` (+ `waitForNetworkIdle` when asked for) for
    `html`, `page.goto` for `url`, both with `waitUntil`.
 3. **Wait** with `page.waitForSelector(selector, { timeout })`, before `document.fonts.ready` and the
@@ -51,8 +59,8 @@ usual retry.
 
 - `test/unit/capture.capture.test.ts`: call order (check → load → wait → fonts), the shared
   deadline, type validation and the `400` before loading.
-- `test/unit/target-error.test.ts`: the `SyntaxError` messages map to `400`, the selector timeout to
-  `504`.
+- `test/unit/target-error.test.ts`: the `SyntaxError` and `Unknown selector type` messages map to
+  `400`, the selector timeout to `504`.
 - `test/acceptance/app.test.ts`: a page whose script replaces its content after 1.5 s with a
   three-page layout and `#pdf-ready`. Printed without the parameter it has one page; with it, three,
   for `html`, `url` and `GET /pdf`. The caller-error table covers the `504` and the `400`s, followed by the

@@ -22,8 +22,9 @@ const invalidUrl = new RegExp([
 ].join('|'))
 
 // a waitForSelector the page rejects as CSS or XPath syntax, e.g. "SyntaxError: Failed to execute
-// 'querySelector' on 'Document': '#' is not a valid selector."
-const invalidSelector = /SyntaxError: Failed to execute '\w+' on '\w+'/
+// 'querySelector' on 'Document': '#' is not a valid selector.", or a puppeteer ::-p-… extension that
+// does not exist ("Unknown selector type: madeup", thrown by puppeteer's script in the page)
+const invalidSelector = /SyntaxError: Failed to execute '\w+' on '\w+'|^Unknown selector type: /
 
 // DNS, connection, proxy, TLS, certificate, redirect and response failures of the requested site
 // (codes from Chromium's net/base/net_error_list.h)

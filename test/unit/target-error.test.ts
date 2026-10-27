@@ -12,6 +12,8 @@ describe('toTargetError', () => {
     ['net::ERR_UNKNOWN_URL_SCHEME at foo://bar', 400],
     ["SyntaxError: Failed to execute 'querySelector' on 'Document': '#' is not a valid selector.", 400],
     ["SyntaxError: Failed to execute 'evaluate' on 'Document': The string '//[' is not a valid XPath expression.", 400],
+    ['Unknown selector type: madeup', 400],
+    ['Unknown selector type: ', 400],
     ['net::ERR_NAME_NOT_RESOLVED at http://does-not-exist.invalid', 502],
     ['net::ERR_CONNECTION_REFUSED at http://localhost:4001', 502],
     ['net::ERR_CERT_DATE_INVALID at https://expired.badssl.com/', 502],
