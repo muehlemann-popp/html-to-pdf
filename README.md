@@ -9,7 +9,7 @@ Microservice for generating PDF and screenshots from either provided HTML or a U
 Uses [puppeteer](https://pptr.dev/) and
 [headless Chromium](https://developer.chrome.com/docs/chromium/headless).
 Written in [typescript](https://www.typescriptlang.org/)
-compiled by [webpack](https://webpack.js.org/) and
+bundled by [esbuild](https://esbuild.github.io/) and
 dependencies managed by [yarn 4](https://yarnpkg.com/).
 
 The image runs Node 26 (LTS) and the Chromium package of its Alpine release (currently Alpine 3.24,

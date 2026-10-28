@@ -9,7 +9,7 @@ import { closeBrowser } from '~/controller/browser'
 
 afterAll(closeBrowser)
 
-async function downloadPDF(cb: (v: request.SuperTest<request.Test>) => request.Test): Promise<string> {
+async function downloadPDF(cb: (v: request.Agent) => request.Test): Promise<string> {
   const response = await cb(request(app))
     .expect('Content-Type', /application\/pdf/)
     .expect(200)
@@ -43,9 +43,40 @@ describe('Basic routing', () => {
   it('should display readme when opening root', async () => {
     await request(app)
       .get('/')
-      .expect('Content-Type', /text\/html/)
+      .expect('Content-Type', 'text/html; charset=utf-8')
       .expect(200)
       .expect(/Microservice for generating PDF and screenshots/)
+      .expect((res) => {
+        // rendered at build time, with the stylesheet inline instead of from a CDN
+        expect(res.text).toMatch(/<h2[^>]*>.*Setup.*<\/h2>/)
+        expect(res.text).toContain('<style>')
+        expect(res.text).not.toMatch(/<link /)
+      })
+  })
+
+  it('should serve the favicon', async () => {
+    await request(app)
+      .get('/favicon.ico')
+      // the IANA type, express 4 sent image/x-icon
+      .expect('Content-Type', /image\/vnd\.microsoft\.icon/)
+      .expect(200)
+  })
+
+  it.each(['/nope', '/nope/deeper', '/pdf/nope'])('should answer %s with 404', async (path) => {
+    await request(app)
+      .get(path)
+      .expect('Content-Type', /application\/json/)
+      .expect(404)
+      .expect((res) => {
+        expect(res.body).toStrictEqual({ error: `not found: ${path}` })
+      })
+  })
+
+  it('should take a screenshot of about:blank when POST /screenshot without parameters', async () => {
+    await request(app)
+      .post('/screenshot')
+      .expect('Content-Type', /image\/png/)
+      .expect(200)
   })
 
   it('should print about:blank when GET /pdf without parameters', async () => {

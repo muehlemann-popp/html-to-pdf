@@ -1,6 +1,4 @@
-import express, { Request, Response, Router } from 'express'
-import { marked } from 'marked'
-import fs from 'fs'
+import { Request, Response, Router } from 'express'
 import { register } from 'prom-client'
 import { CaptureMime, CaptureParameters, CaptureType } from '~/interface'
 import { pdfCounter, screenshotCounter } from '~/controller/metrics'
@@ -13,6 +11,9 @@ const pdfDefaultName = 'booklet'
 const screenshotDefaultName = 'screenshot'
 
 const router = Router()
+
+// express 5 leaves req.body undefined when the request has no JSON body, express 4 made it {}
+const bodyParams = (req: Request): CaptureParameters => req.body ?? {}
 
 /**
  * Generate PDF from an url via GET
@@ -42,7 +43,7 @@ router.post('/pdf', async (req: Request, res: Response) => {
     CaptureType.PDF,
     CaptureMime.PDF,
     req.query?.filename as string || pdfDefaultName,
-    req.body as CaptureParameters,
+    bodyParams(req),
   )
   if (sent) {
     pdfCounter.inc({ method: 'post' })
@@ -75,9 +76,9 @@ router.post('/screenshot', async (req: Request, res: Response) => {
   const sent = await captureAndReturn(
     res,
     CaptureType.Screenshot,
-    req.body.screenshotOptions?.type === 'jpeg' ? CaptureMime.JPG : CaptureMime.PNG,
+    bodyParams(req).screenshotOptions?.type === 'jpeg' ? CaptureMime.JPG : CaptureMime.PNG,
     req.query?.filename as string || screenshotDefaultName,
-    req.body as CaptureParameters,
+    bodyParams(req),
   )
   if (sent) {
     screenshotCounter.inc({ method: 'post' })
@@ -85,14 +86,11 @@ router.post('/screenshot', async (req: Request, res: Response) => {
 })
 
 /**
- * Print readme
+ * Print readme, rendered at build time (scripts/readme-html.mjs)
  */
 router.get('/', async (req: Request, res: Response) => {
   await logRequest('/', res, false, async () => {
-    const content = marked(fs.readFileSync('README.md').toString())
-    const css = 'https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/slate/bootstrap.min.css'
-    const link = `<link rel="stylesheet" href="${css}" crossorigin="anonymous" />`
-    res.status(200).send(`<html><head>${link}</head><body><div class="container p-5">${content}</div></body></html>`)
+    res.status(200).type('html').send(README_HTML)
   })
 })
 
@@ -165,12 +163,14 @@ router.get('/version', async (req: Request, res: Response) => {
 /**
  * Favicon
  */
-router.use('/favicon.ico', express.static('favicon.ico'))
+router.get('/favicon.ico', (req: Request, res: Response) => {
+  res.sendFile('favicon.ico', { root: '.' })
+})
 
 /**
  * Catch all, 404
  */
-router.get('*', async (req: Request, res: Response) => {
+router.get('/{*splat}', async (req: Request, res: Response) => {
   await logRequest(`404: ${req.path}`, res, false, async () => {
     res.status(404).send({
       error: `not found: ${req.path}`,

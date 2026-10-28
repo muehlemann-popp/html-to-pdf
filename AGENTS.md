@@ -9,7 +9,8 @@ contributor docs live in [`docs/`](docs/README.md) — read its index, and updat
 ```bash
 yarn lint --max-warnings 0
 yarn test                     # vitest; acceptance tests need a Chromium (see below)
-yarn build                    # webpack -> build/main.prod.js, the only file the image runs
+yarn build                    # tsc --noEmit, then esbuild -> build/main.prod.js, the only file the image runs
+yarn start                    # dev bundle on every change, server restarted with node --watch
 docker build --file deploy/Dockerfile --target test --tag html-to-pdf:test .
 docker run --rm html-to-pdf:test yarn test      # what CI runs, with the image's Chromium
 docker run --rm --env CHROME_SANDBOX=1 --security-opt seccomp=deploy/chrome-seccomp.json \
