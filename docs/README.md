@@ -59,6 +59,11 @@ you supersede them with a new file rather than rewriting them.
 
 ## Index
 
+### Features
+
+- [Waiting for a selector](features/wait-for-selector.md) — `waitForSelector`: capture once a page
+  rendered by JavaScript (any framework) has added a marker element; shared timeout and error mapping.
+
 ### ADRs
 
 - [0001 — chrome-headless-shell, not the full browser](adr/0001-chromium-headless-shell.md) — why

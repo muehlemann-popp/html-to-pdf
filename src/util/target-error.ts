@@ -1,9 +1,9 @@
 import { TimeoutError } from 'puppeteer'
 
 /**
- The page the caller asked for could not be rendered (bad URL, unreachable site, timeout), while the
- service itself is fine: answered with a 4xx/5xx status, not retried, and neither the browser nor the
- node process is replaced, see README "Errors".
+ The page the caller asked for could not be rendered (bad URL or selector, unreachable site, timeout),
+ while the service itself is fine: answered with a 4xx/5xx status, not retried, and neither the
+ browser nor the node process is replaced, see README "Errors".
 */
 export class TargetError extends Error {
   readonly status: number
@@ -20,6 +20,11 @@ const invalidUrl = new RegExp([
   'Cannot navigate to invalid URL',
   'net::ERR_(INVALID_URL|UNSAFE_PORT|UNKNOWN_URL_SCHEME|DISALLOWED_URL_SCHEME)\\b',
 ].join('|'))
+
+// a waitForSelector the page rejects as CSS or XPath syntax, e.g. "SyntaxError: Failed to execute
+// 'querySelector' on 'Document': '#' is not a valid selector.", or a puppeteer ::-p-… extension that
+// does not exist ("Unknown selector type: madeup", thrown by puppeteer's script in the page)
+const invalidSelector = /SyntaxError: Failed to execute '\w+' on '\w+'|^Unknown selector type: /
 
 // DNS, connection, proxy, TLS, certificate, redirect and response failures of the requested site
 // (codes from Chromium's net/base/net_error_list.h)
@@ -59,7 +64,7 @@ export const toTargetError = (e: unknown): unknown => {
     return new TargetError(e.message, 504)
   }
   const message = (e as Error)?.message ?? ''
-  if (invalidUrl.test(message)) {
+  if (invalidUrl.test(message) || invalidSelector.test(message)) {
     return new TargetError(message, 400)
   }
   if (siteFailure.test(message)) {

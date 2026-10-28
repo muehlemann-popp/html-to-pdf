@@ -122,6 +122,9 @@ Check it with `GET /selfcheck` (it answers `500` if the sandbox cannot start); t
 subresource a page asks for, with the network of the container: internal hosts, services on
 `localhost` or in the cluster, and cloud metadata endpoints such as `169.254.169.254`. If callers are
 not trusted, restrict the container's outgoing traffic (network policy, egress firewall) as well.
+`waitForSelector` adds to this: whether a request answers `200` or `504` tells the caller whether the
+selector matched the loaded page, including what is not printed (hidden inputs, `<meta>` tags, inline
+scripts), so attribute, text or XPath selectors can test guesses about it one request at a time.
 
 
 ## <a name="usage">Usage</a>
@@ -151,6 +154,9 @@ is provided `about:blank` will be printed.
   
   - `filename: string`, optional.
   
+  - `waitForSelector: string`, optional, same as for [`POST /pdf`](#pdf-post) (URL-encode it, e.g.
+    `%23pdf-ready` for `#pdf-ready`).
+  
   Simplest query can be similar to: `/pdf?url=https://example.com`
   
 - <a name="screenshot">`GET /screenshot?url=<url>&filename=<filename>`</a>
@@ -160,6 +166,8 @@ is provided `about:blank` will be printed.
   - `url: string`, required
   
   - `filename: string`, optional.
+  
+  - `waitForSelector: string`, optional, same as for [`POST /pdf`](#pdf-post).
   
   Simplest query can be similar to: `/screenshot?url=https://example.com`
   
@@ -183,6 +191,15 @@ is provided `about:blank` will be printed.
     are awaited after the content is set (no connections / at most 2 for 500 ms), and the content is
     always awaited up to `load` at least; both waits together are bounded by `timeout`.
   
+  - `waitForSelector: string`, optional. After loading (`waitUntil`), wait until an element matching
+    this selector is in the page, then capture. For pages whose content is rendered by JavaScript after
+    `load`, with any framework (React, Vue, Angular, Svelte, …) or none. The selector is yours to
+    choose: the service knows nothing about `#pdf-ready` or any other name. The element only has to be
+    attached, not visible. CSS selectors and
+    [puppeteer's selector extensions](https://pptr.dev/guides/page-interactions#selectors) (`::-p-text(…)`,
+    `::-p-xpath(…)`, …) work. Loading and this wait together are bounded by `timeout`: a selector that
+    does not appear in time is answered with `504`, an invalid one with `400`, see [Errors](#errors).
+  
   - `timeout: number`, optional, milliseconds, defaults to 60000.
     See [puppeteer docs for `page.setDefaultNavigationTimeout()`](https://pptr.dev/api/puppeteer.page.setdefaultnavigationtimeout)
 
@@ -190,6 +207,18 @@ is provided `about:blank` will be printed.
   
   ```json
    {"url": "https://example.com"}
+   ```
+  
+  A page that is printed once it has rendered: when its data is loaded and rendered, it adds a marker
+  element (here `#pdf-ready`), from its framework's template or from plain JavaScript, and the request
+  waits for it.
+  
+  ```js
+  document.body.insertAdjacentHTML('beforeend', '<div id="pdf-ready" hidden></div>')
+  ```
+  
+  ```json
+   {"url": "https://app.example.com/report/42", "waitForSelector": "#pdf-ready", "timeout": 30000}
    ```
 
 - <a name="screenshot-post">`POST /screenshot`</a>
@@ -207,7 +236,8 @@ is provided `about:blank` will be printed.
     - `viewport: Viewport`, optional, defaults to 1200×800.
       See [puppeteer docs for `Viewport`](https://pptr.dev/api/puppeteer.viewport)
     
-    - `waitUntil: string[]` and `timeout: number`, optional, same as for [`POST /pdf`](#pdf-post).
+    - `waitUntil: string[]`, `waitForSelector: string` and `timeout: number`, optional, same as for
+      [`POST /pdf`](#pdf-post).
     
     Simplest payload is the same as for the `POST /pdf` method
 
@@ -241,9 +271,10 @@ status that says whose problem it is:
 | Status | Cause | Service |
 | --- | --- | --- |
 | `400` | The URL cannot be loaded at all: malformed, blocked port or unsupported scheme (`net::ERR_UNSAFE_PORT`, `Cannot navigate to invalid URL`, …) | keeps running |
+| `400` | `waitForSelector` is not a non-empty string, or not a valid selector (`SyntaxError: … is not a valid selector`, `Unknown selector type: …`); checked before the page is loaded | keeps running |
 | `502` | The requested site failed: DNS, refused connection, TLS, certificate, redirects, broken response (`net::ERR_NAME_NOT_RESOLVED`, `net::ERR_CONNECTION_REFUSED`, `net::ERR_CERT_…`, …) | keeps running |
 | `502` | Any other `net::ERR_…` (`net::ERR_ABORTED`, `net::ERR_FAILED`, e.g. a URL that downloads a file) that a fresh browser reproduced | retried once on a fresh browser, since a failing browser reports these too; keeps running |
-| `504` | The page did not finish loading within `timeout`, including `networkidle0`/`networkidle2` | keeps running |
+| `504` | The page did not finish loading within `timeout`, including `networkidle0`/`networkidle2` and `waitForSelector` (`Waiting for selector … failed`) | keeps running |
 | `500` | The service failed to render (e.g. Chromium crashed) | retried once on a fresh browser; if the retry fails too, the process exits and the container entrypoint restarts it |
 
 `400`, `502` and `504` are not reported to Sentry and, except for the second `502` row, not retried.
