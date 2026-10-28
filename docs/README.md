@@ -59,6 +59,11 @@ you supersede them with a new file rather than rewriting them.
 
 ## Index
 
+### Features
+
+- [Waiting for a selector](features/wait-for-selector.md) — `waitForSelector`: capture once a page
+  rendered by JavaScript (any framework) has added a marker element; shared timeout and error mapping.
+
 ### ADRs
 
 - [0001 — chrome-headless-shell, not the full browser](adr/0001-chromium-headless-shell.md) — why
@@ -67,6 +72,8 @@ you supersede them with a new file rather than rewriting them.
   browser-per-request launch; its recycling rules and trade-offs.
 - [0003 — Opt-in Chromium sandbox](adr/0003-opt-in-chromium-sandbox.md) — `CHROME_SANDBOX=1`,
   the seccomp profile it needs and why it is not the default yet.
+- [0004 — esbuild builds the single-file bundle](adr/0004-esbuild-single-file-bundle.md) — why
+  webpack was replaced, and what the ES module bundle needs to run on its own.
 
 ### Plans
 

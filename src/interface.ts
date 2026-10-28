@@ -24,5 +24,6 @@ export interface CaptureParameters {
   screenshotOptions?: ScreenshotOptions & CustomScreenshotOptions,
   viewport?: Viewport,
   waitUntil?: PuppeteerLifeCycleEvent[]
+  waitForSelector?: string
   timeout?: number
 }

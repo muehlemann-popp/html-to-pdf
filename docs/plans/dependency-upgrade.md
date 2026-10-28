@@ -1,7 +1,10 @@
 # Dependency upgrade plan
 
-**Status:** in progress — the Chromium step (A1, A2, A5 and the parts of A4/A8/A10 they forced)
-landed together on branch `feat/chromium-155`; see [Progress](#progress-2026-10-26).
+**Status:** in progress — only A11 is left. The Chromium step (A1, A2, A5 and the parts of
+A4/A8/A10 they forced) landed together on branch `feat/chromium-155`, see
+[Progress](#progress-2026-10-26); the tooling step (A3, A4, A6, A7, A9, the ES module package and
+esbuild in place of webpack) landed together on branch `claude/tooling-upgrade-5b85a9`, see
+[Progress: tooling](#progress-tooling-2026-10-26).
 
 Every runtime dependency of this service is several majors behind, and the Node line it builds on
 has been out of support since 2023. This plan is the ordered route back to current, split so each
@@ -11,13 +14,13 @@ step is a reviewable pull request on its own.
 | --- | --- |
 | A1 Capture reference PDFs from the current version | done — `test/reference/requests/` + `scripts/benchmark.mjs` |
 | A2 Node 19 → 24 (one version, three files) | done — went to Node 26 instead, see Progress |
-| A3 Sentry 7 → 10 (delete `@sentry/tracing`) | pending |
-| A4 Patches and minors | partly — webpack 5.111, terser-webpack-plugin 5.6, ts-loader 9.6 |
+| A3 Sentry 7 → 10 (delete `@sentry/tracing`) | done — 10.76.2, `src/instrument.ts`; not 11, see Progress: tooling |
+| A4 Patches and minors | done — prom-client 15, supertest 7, Prettier 3; webpack and its helpers removed |
 | A5 Puppeteer 19 → 25 | done — 25.13.0, chrome-headless-shell 155 |
-| A6 Express 4 → 5 | pending |
-| A7 `marked` 4 → 18 | pending |
+| A6 Express 4 → 5 | done — 5.3, `body-parser` removed |
+| A7 `marked` 4 → 18 | done — 18, as a dev dependency: the README is rendered at build time |
 | A8 TypeScript 4.8 → 5.x + fix `tsconfig.json` | done — TypeScript 6.0 (not 5.x), `tsconfig.json` fixed |
-| A9 ESLint 8 → 10 (flat config) | pending (import resolver already swapped) |
+| A9 ESLint 8 → 10 (flat config) | done — ESLint 10.12, typescript-eslint recommended instead of airbnb |
 | A10 Jest 29 → 30, Yarn 3 → 4 | done — Yarn 4.18 with `node-modules`; Jest replaced by Vitest 5 |
 | A11 CI actions bump + release | partly — actions on their Node 24 majors; binfmt pin and release pending |
 
@@ -62,6 +65,37 @@ plan:
   file with `%%EOF\n`. The check now asserts `%PDF-1.`, `/Producer (Skia/PDF` and a trimmed
   `%%EOF`.
 
+## Progress: tooling (2026-10-26)
+
+One branch for the rest of the tooling, one commit per step: ES module package, esbuild instead of
+webpack ([ADR 0004](../adr/0004-esbuild-single-file-bundle.md)), ESLint 10, Express 5, Sentry 10,
+no `marked`, minors. Findings that differ from the steps below:
+
+- **Sentry 10, not 11.** The age gate allows 11.7, but 11 makes `dataCollection` send request bodies
+  and cookies by default (here: the callers' HTML) and deprecates `setupExpressErrorHandler`. The
+  bundle contains Express, so Sentry's automatic instrumentation never sees it; the init in
+  `src/instrument.ts` runs only with `SENTRY_DSN` and turns off the ESM loader hooks, and errors
+  arrive through the Express error handler. Verified against the built bundle with a local stand-in
+  for Sentry, and by `test/acceptance/sentry.test.ts`.
+- **Express 5 had two breaks the list below misses.** `req.body` stays `undefined` without a JSON
+  body (an empty `POST /pdf` became a service error that exits the process), and a listen error goes
+  to the `app.listen` callback instead of crashing. Both handled; `.ico` is now sent as
+  `image/vnd.microsoft.icon`.
+- **airbnb has no flat config** (`eslint-config-airbnb-base` 15 is from 2021; the community port
+  `eslint-config-airbnb-extended` supports ESLint 9 only). The base is `@eslint/js` and
+  typescript-eslint's recommended sets plus the airbnb rules the code relied on, with
+  `eslint-plugin-import-x` in place of `eslint-plugin-import` (no ESLint 10 support).
+- **Prettier was never applied.** Lint registered `eslint-plugin-prettier` without enabling its
+  rule, and the code is airbnb-formatted, so Prettier 3 needs no reformat commit; lint now enforces
+  only what both styles agree on (no semicolons, single quotes, 120 columns).
+- **`marked` only runs at build time**: `scripts/readme-html.mjs` renders the README with a small
+  inline stylesheet into the bundle, so the image needs neither `marked`, `README.md` nor a CDN.
+- **The `packageExtensions`** in `.yarnrc.yml` were redundant and are gone; so is `.npmversion`.
+- **Measured** with `scripts/benchmark.mjs` against `main`, two rounds each: reference outputs
+  identical apart from the PDFs' creation dates, latency the same within noise, and 7–13 MiB more
+  anonymous memory per scenario, about 5 MiB of it Sentry 10's OpenTelemetry modules (details in
+  [ADR 0004](../adr/0004-esbuild-single-file-bundle.md)).
+
 Snapshot taken 2026-08-28 against `main` (`4e3b4b6`). Every "latest" below was read from the npm
 registry on that date; every change marked **confirmed** was read from the upstream migration
 guide or API docs, not inferred from the version number.
@@ -102,7 +136,7 @@ Every step ends with the same four commands. A step is not done until all four p
 ```
 yarn lint --max-warnings 0
 yarn test                       # 4 spec files: 3 unit, 1 acceptance (supertest)
-yarn build                      # webpack → build/main.prod.js
+yarn build                      # tsc --noEmit + esbuild → build/main.prod.js
 docker build --file deploy/Dockerfile --target test --tag html-to-pdf .
 ```
 
@@ -381,7 +415,7 @@ different strings. Say all three in the release notes.
 | Thing | Why not |
 | --- | --- |
 | TypeScript 7 | A new compiler implementation. Evaluate separately once 5.x is green. |
-| Dropping webpack for `tsc` or `esbuild` | Defensible — the bundle exists only to make the Docker image a single file — but it is a build-system change, not a dependency upgrade. Worth an ADR. |
+| Dropping webpack for `tsc` or `esbuild` | Done after all, with the tooling step: esbuild, [ADR 0004](../adr/0004-esbuild-single-file-bundle.md). |
 | Rewriting the `--single-process` launch args | Touches PDF output and stability at the same time as Puppeteer does. Separate change, with the A1 references as the check. |
 | The Browserless code path | `BROWSERLESS=1` is a local-debug path. Leave it, but stop the README implying it is the normal way to run the service. |
 | Anything outside this repository | Whatever deploys this image pins a tag; bumping that pin is the deployer's step, not part of this plan. |

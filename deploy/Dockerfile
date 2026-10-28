@@ -32,7 +32,6 @@ ENV \
 COPY deploy/local.conf /etc/fonts/local.conf
 COPY favicon.ico .
 COPY deploy/docker-entrypoint.sh /docker-entrypoint.sh
-COPY README.md .
 
 ENTRYPOINT ["tini", "--"]
 
@@ -50,6 +49,8 @@ RUN yarn install && yarn build
 FROM base AS prod
 
 COPY --from=builder /app/build/main.prod.js .
+# the bundle is an ES module, say so instead of relying on node's syntax detection
+RUN echo '{ "type": "module" }' > package.json
 
 # Run Chrome as non-privileged
 USER chrome
