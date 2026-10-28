@@ -10,7 +10,7 @@ jobs:
       PUPPETEER_SKIP_DOWNLOAD: 1
       DOCKER_BUILDKIT: 1
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - name: Build container
         run: docker build --file deploy/Dockerfile --target test --tag ${TAG} .
       - name: Run lint in a container

@@ -22,7 +22,7 @@ step is a reviewable pull request on its own.
 | A8 TypeScript 4.8 → 5.x + fix `tsconfig.json` | done — TypeScript 6.0 (not 5.x), `tsconfig.json` fixed |
 | A9 ESLint 8 → 10 (flat config) | done — ESLint 10.12, typescript-eslint recommended instead of airbnb |
 | A10 Jest 29 → 30, Yarn 3 → 4 | done — Yarn 4.18 with `node-modules`; Jest replaced by Vitest 5 |
-| A11 CI actions bump + release | pending |
+| A11 CI actions bump + release | partly — actions on their Node 24 majors, binfmt `qemu-v10.2.3`; release pending |
 
 **All versions are subject to the two-week age gate** (`npmMinimalAgeGate: 20160` in
 `.yarnrc.yml`, the same rule as the other m+p repositories): the "latest" versions named below
@@ -386,16 +386,29 @@ last. Fix while migrating.
 
 | Action | Pinned | Note |
 | --- | --- | --- |
-| `actions/checkout` | v3 | → v6 |
-| `docker/setup-qemu-action` | v2 | → latest |
-| `docker/setup-buildx-action` | v2 | → latest |
-| `docker/metadata-action` | v4 | → latest |
-| `tonistiigi/binfmt` | `qemu-v6.2.0` | Pinned QEMU image for the arm64 cross-build. Re-verify or unpin |
+| `actions/checkout` | v3 | done — v7 |
+| `docker/setup-qemu-action` | v2 | done — v4 |
+| `docker/setup-buildx-action` | v2 | done — v4 |
+| `docker/metadata-action` | v4 | done — v6 |
+| `docker/login-action` | v2 | done — v4 |
+| `docker/bake-action` | v2 | done — v7, with `source: .`: since v6 it defaults to the git context, which would not see the local bake file `metadata-action` writes |
+| `tonistiigi/binfmt` | `qemu-v6.2.0` | done — `qemu-v10.2.3`, still pinned |
+
+The action bumps were forced by GitHub deprecating the Node 20 action runtime: every new major
+runs on Node 24 and otherwise only removes inputs this repository does not use.
+
+The binfmt pin came in with #7 (2022) as the known workaround for Node crashing under QEMU 7 on
+arm64 ([actions/setup-node#488](https://github.com/actions/setup-node/issues/488)). It stays a
+pin rather than `setup-qemu-action`'s default `tonistiigi/binfmt:latest`, so the emulator only
+changes in a reviewed commit; `qemu-v10.2.3` is what `latest` points to and was published
+2026-06-08, well past the two-week age gate.
 
 `docker-bake.hcl` builds `linux/amd64` and `linux/arm64/v8` from the `prod` target — check that
 the arm64 build still works after the Chromium/Alpine change. It is the leg most likely to break
 silently: Alpine ships different Chromium builds per architecture, and CI cross-builds it under
-QEMU rather than natively.
+QEMU rather than natively. Checked natively on an arm64 host (2026-10-28): the `test` image passes
+the whole suite and the `prod` image builds with `chromium-headless-shell` 155.0.8059.84, the same
+version as amd64. The QEMU cross-build itself first runs in `release.yml` after merge.
 
 Then tag a release. `release.yml` publishes on pushes to `main` and on `v*` tags, emitting
 semver, major.minor, major and `git-<sha>` tags. **Treat this as a semver major.** The image is
