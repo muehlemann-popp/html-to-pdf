@@ -19,7 +19,7 @@ step is a reviewable pull request on its own.
 | A8 TypeScript 4.8 → 5.x + fix `tsconfig.json` | done — TypeScript 6.0 (not 5.x), `tsconfig.json` fixed |
 | A9 ESLint 8 → 10 (flat config) | pending (import resolver already swapped) |
 | A10 Jest 29 → 30, Yarn 3 → 4 | done — Yarn 4.18 with `node-modules`; Jest replaced by Vitest 5 |
-| A11 CI actions bump + release | pending |
+| A11 CI actions bump + release | partly — actions on their Node 24 majors; binfmt pin and release pending |
 
 **All versions are subject to the two-week age gate** (`npmMinimalAgeGate: 20160` in
 `.yarnrc.yml`, the same rule as the other m+p repositories): the "latest" versions named below
@@ -352,11 +352,16 @@ last. Fix while migrating.
 
 | Action | Pinned | Note |
 | --- | --- | --- |
-| `actions/checkout` | v3 | → v6 |
-| `docker/setup-qemu-action` | v2 | → latest |
-| `docker/setup-buildx-action` | v2 | → latest |
-| `docker/metadata-action` | v4 | → latest |
+| `actions/checkout` | v3 | done — v7 |
+| `docker/setup-qemu-action` | v2 | done — v4 |
+| `docker/setup-buildx-action` | v2 | done — v4 |
+| `docker/metadata-action` | v4 | done — v6 |
+| `docker/login-action` | v2 | done — v4 |
+| `docker/bake-action` | v2 | done — v7, with `source: .`: since v6 it defaults to the git context, which would not see the local bake file `metadata-action` writes |
 | `tonistiigi/binfmt` | `qemu-v6.2.0` | Pinned QEMU image for the arm64 cross-build. Re-verify or unpin |
+
+The action bumps were forced by GitHub deprecating the Node 20 action runtime: every new major
+runs on Node 24 and otherwise only removes inputs this repository does not use.
 
 `docker-bake.hcl` builds `linux/amd64` and `linux/arm64/v8` from the `prod` target — check that
 the arm64 build still works after the Chromium/Alpine change. It is the leg most likely to break
