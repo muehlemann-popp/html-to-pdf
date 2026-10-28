@@ -19,7 +19,7 @@ jobs:
         id: qemu
         uses: docker/setup-qemu-action@v4
         with:
-          image: tonistiigi/binfmt:qemu-v6.2.0
+          image: tonistiigi/binfmt:qemu-v10.2.3
           platforms: amd64,arm64
 
       - name: Set up Docker Buildx
