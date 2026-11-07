@@ -61,6 +61,8 @@ you supersede them with a new file rather than rewriting them.
 
 ### Features
 
+- [Capture limits](features/capture-limits.md) — `MAX_CONCURRENT_CAPTURES`, the FIFO queue and its
+  `503`, the `MAX_TIMEOUT_MS` cap; why queue time is not part of `timeout` and `/selfcheck` takes no slot.
 - [Waiting for a selector](features/wait-for-selector.md) — `waitForSelector`: capture once a page
   rendered by JavaScript (any framework) has added a marker element; shared timeout and error mapping.
 

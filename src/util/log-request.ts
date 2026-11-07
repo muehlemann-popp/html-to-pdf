@@ -1,6 +1,7 @@
 import { performance } from 'perf_hooks'
 import { Response } from 'express'
 import { captureException } from '@sentry/node'
+import { CaptureRejectedError } from '~/controller/capture-slots'
 import { TargetError } from '~/util/target-error'
 import timestamp from '~/util/timestamp'
 
@@ -53,6 +54,12 @@ export const processRequestError = async <T> (
       // eslint-disable-next-line no-console
       console.warn(`[${timestamp()}] ${err.status} at ${requestInfo}. "${err.message}"`)
       res.status(err.status).json({ status: 'error', message: err.message })
+    } else if (err instanceof CaptureRejectedError) {
+      // too busy, not broken: no stack trace, nothing for Sentry
+      // eslint-disable-next-line no-console
+      console.warn(`[${timestamp()}] ${err.status} at ${requestInfo}. "${err.message}"`)
+      res.status(err.status).set('Retry-After', String(err.retryAfter))
+        .json({ status: 'error', message: err.message })
     } else {
       // eslint-disable-next-line no-console
       console.error(

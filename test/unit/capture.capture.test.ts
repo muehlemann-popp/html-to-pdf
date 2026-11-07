@@ -174,6 +174,24 @@ describe('capture', () => {
     expect(contextProto.newPage).not.toHaveBeenCalled()
   })
 
+  it.each([
+    [undefined, 60000],
+    [0, 60000],
+    [5000, 5000],
+    [120000, 120000],
+    [600000, 120000],
+  ])('turns timeout %j into a navigation timeout of %j ms, at most MAX_TIMEOUT_MS', async (timeout, expected) => {
+    await capture(CaptureType.PDF, { timeout })
+    expect(pageProto.setDefaultNavigationTimeout).toHaveBeenCalledWith(expected)
+  })
+
+  it.each([-1, '5000', Infinity, NaN, {}])('rejects timeout %j as a 400 without opening a page', async (timeout) => {
+    const error = await capture(CaptureType.PDF, { timeout: timeout as number }).catch((e) => e)
+    expect(error).toBeInstanceOf(TargetError)
+    expect(error.status).toBe(400)
+    expect(contextProto.newPage).not.toHaveBeenCalled()
+  })
+
   it('reports an invalid selector as a 400 before loading the page and keeps the browser', async () => {
     const syntaxError = new Error("SyntaxError: Failed to execute 'querySelector' on 'Document': '#' is not a valid selector.")
     pageProto.$.mockRejectedValueOnce(syntaxError)

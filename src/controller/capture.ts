@@ -9,12 +9,25 @@ import puppeteer, {
 
 import { acquireContext, Lease } from '~/controller/browser'
 import { CaptureParameters, CaptureType } from '~/interface'
+import { intFromEnv } from '~/util/env'
 import { TargetError, toTargetError } from '~/util/target-error'
 import timestamp from '~/util/timestamp'
 
 export const defaultUrl = 'about:blank'
 
 export const defaultNavigationTimeout = 60000
+
+// a larger `timeout` is lowered to this, so no request holds a browser context for longer
+export const maxNavigationTimeout = intFromEnv('MAX_TIMEOUT_MS', 120000, 1)
+
+// the caller's timeout (0 or none: the default), at most MAX_TIMEOUT_MS
+const navigationTimeout = ({ timeout }: CaptureParameters): number => {
+  if (timeout !== undefined && timeout !== null
+    && (typeof timeout !== 'number' || !Number.isFinite(timeout) || timeout < 0)) {
+    throw new TargetError('timeout must be a non-negative number of milliseconds', 400)
+  }
+  return Math.min(timeout || defaultNavigationTimeout, maxNavigationTimeout)
+}
 
 // see https://pptr.dev/api/puppeteer.pdfoptions
 const defaultPDFOptions: PDFOptions = {
@@ -70,6 +83,8 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
   if (!params) {
     throw new Error('Capture parameters should be defined')
   }
+  // checked before a browser context is acquired, like waitForSelector
+  const timeout = navigationTimeout(params)
   const { waitForSelector } = params
   if (waitForSelector !== undefined && (typeof waitForSelector !== 'string' || !waitForSelector)) {
     throw new TargetError('waitForSelector must be a non-empty string', 400)
@@ -91,7 +106,7 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       url, html, pdfOptions, viewport, screenshotOptions,
     } = params
 
-    page.setDefaultNavigationTimeout(params.timeout || defaultNavigationTimeout)
+    page.setDefaultNavigationTimeout(timeout)
     if (viewport || captureType === CaptureType.Screenshot) {
       await logException(
         'browser.newPage',
@@ -100,7 +115,7 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
     }
 
     // all waits for the page share the caller's timeout (the page's navigation timeout)
-    const deadline = Date.now() + (params.timeout || defaultNavigationTimeout)
+    const deadline = Date.now() + timeout
     // at least 1 ms: 0 would disable the timeout
     const remaining = () => Math.max(deadline - Date.now(), 1)
 
