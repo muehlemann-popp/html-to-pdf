@@ -1,6 +1,6 @@
 # 0001 — Render with chrome-headless-shell, not the full Chromium browser
 
-**Date:** 2026-10-26 · **Status:** accepted · **Context:** [dependency upgrade plan](../plans/dependency-upgrade.md), step A5
+**Date:** 2026-10-26 · **Status:** accepted · **Context:** [dependency upgrade plan](https://github.com/muehlemann-popp/html-to-pdf/blob/b063297e874c2c7412253de22d52920ed2f37b3e/docs/plans/dependency-upgrade.md) (removed once done), step A5
 
 ## Context
 

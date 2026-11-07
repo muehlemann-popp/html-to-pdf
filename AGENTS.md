@@ -52,4 +52,12 @@ point it at one with `PUPPETEER_EXECUTABLE_PATH`, or run tests in the `test` ima
   profile from Docker's default rather than editing unrelated rules. Never edit
   `deploy/chrome-seccomp-kubernetes.json` by hand: regenerate it with
   `node scripts/seccomp-kubernetes.mjs` (a unit test fails if it is out of date).
+- Majors held back on purpose, do not bump them as routine updates: `@sentry/node` stays on 10,
+  because 11 sends request bodies and cookies by default (`dataCollection`; here the callers' HTML)
+  and deprecates `setupExpressErrorHandler` (`src/instrument.ts`); `typescript` stays on 6, the last
+  release with the JavaScript API that typescript-eslint needs, since 7 is the new native compiler.
+- `release.yml` pins the binfmt (QEMU) image instead of `setup-qemu-action`'s default `latest`, so
+  the emulator only changes in a reviewed commit. The pin came in with
+  [#7](https://github.com/muehlemann-popp/html-to-pdf/pull/7) as the workaround for node
+  crashing under QEMU 7 on arm64 ([actions/setup-node#488](https://github.com/actions/setup-node/issues/488)).
 - Conventional commit prefixes (`feat:`, `fix:`, `docs:`, `chore:`); one topic per pull request.
