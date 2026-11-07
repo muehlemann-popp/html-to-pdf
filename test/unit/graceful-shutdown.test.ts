@@ -75,20 +75,22 @@ describe('graceful shutdown', () => {
     expect(await settled(get(port, '/'))).toMatchObject({ error: expect.stringMatching(/ECONNREFUSED/) })
   })
 
-  it('does not wait for a request beyond the timeout and exits 1', async () => {
+  it('does not wait for a request beyond the timeout and exits 1, without closing the browser first', async () => {
     server = await startServer(60000)
     const closeBrowser = vi.fn().mockResolvedValue(undefined)
+    const exit = vi.fn()
     const inFlight = settled(get(server, '/slow'))
     await new Promise((resolve) => { setTimeout(resolve, 50) })
     const started = Date.now()
-    const code = await new Promise<number>((resolve) => {
-      gracefulShutdown(server, { timeout: 200, closeBrowser, exit: resolve })('SIGTERM')
-    })
-    expect(code).toBe(1)
-    expect(Date.now() - started).toBeLessThan(2000)
-    expect(closeBrowser).toHaveBeenCalledTimes(1)
+    gracefulShutdown(server, { timeout: 200, closeBrowser, exit })('SIGTERM')
     // cut off
     expect(await inFlight).toMatchObject({ error: expect.any(String) })
+    expect(Date.now() - started).toBeLessThan(2000)
+    // closing the connections also runs the server.close() callback: it must neither exit again nor
+    // close the browser, under the captures still running (they would take the retry)
+    await new Promise((resolve) => { setTimeout(resolve, 50) })
+    expect(exit.mock.calls).toEqual([[1]])
+    expect(closeBrowser).not.toHaveBeenCalled()
   })
 
   it('exits at once when nothing is in flight, also if closing the browser fails', async () => {
