@@ -2,17 +2,44 @@ name: Quality check
 
 on: pull_request
 
+# only reads the repository; the layer cache lives in the Actions cache, which needs no token scope
+permissions:
+  contents: read
+
+# a new push to a pull request cancels the run for its previous push
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   lint-test:
     runs-on: ubuntu-26.04
     env:
       TAG: html-to-pdf
-      PUPPETEER_SKIP_DOWNLOAD: 1
-      DOCKER_BUILDKIT: 1
     steps:
       - uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # one cache per day: a cached `apk upgrade` layer would keep the Alpine packages (Chromium) of the
+      # day it was built, so the cache starts over daily; within a day every run reuses its layers
+      - name: Name the layer cache of the day
+        id: cache
+        run: echo "scope=test-$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
       - name: Build container
-        run: docker build --file deploy/Dockerfile --target test --tag ${TAG} .
+        uses: docker/build-push-action@v7
+        with:
+          # the checkout (path context, with .dockerignore), not the action's default git context
+          context: .
+          file: deploy/Dockerfile
+          target: test
+          tags: ${{ env.TAG }}
+          load: true
+          cache-from: type=gha,scope=${{ steps.cache.outputs.scope }}
+          cache-to: type=gha,scope=${{ steps.cache.outputs.scope }},mode=max
+
       - name: Run lint in a container
         run: docker run --rm ${TAG} yarn lint --max-warnings 0
       - name: Run test in a container

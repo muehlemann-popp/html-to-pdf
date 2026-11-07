@@ -7,6 +7,15 @@ on:
     tags:
       - 'v*'
 
+# reads the repository; DockerHub is reached with its own secrets, the layer cache needs no token scope
+permissions:
+  contents: read
+
+# one release build per branch or tag at a time, never cancelled half-pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-26.04
@@ -45,6 +54,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # one cache per day, as in default.yml: the published image must not ship the Alpine packages
+      # (Chromium) of an old cached `apk upgrade` layer. Pushing main and then a tag on the same day, the
+      # tag's build reuses everything
+      - name: Name the layer cache of the day
+        id: cache
+        run: echo "scope=release-$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         uses: docker/bake-action@v7
         with:
@@ -55,3 +71,6 @@ jobs:
             ./docker-bake.hcl
             ${{ steps.meta.outputs.bake-file }}
           targets: build
+          set: |
+            *.cache-from=type=gha,scope=${{ steps.cache.outputs.scope }}
+            *.cache-to=type=gha,scope=${{ steps.cache.outputs.scope }},mode=max
