@@ -32,6 +32,11 @@ RUN \
     libatomic \
     libstdc++ \
     tini \
+  # Mesa's Gallium drivers and the LLVM they need (~200 MiB) come with chromium-headless-shell's
+  # dependency on mesa-dri-gallium, but Chromium never loads them here (--disable-gpu; it links only
+  # libgbm, which stays): docs/research/2026-11-07-mesa-llvm.md. Removed in this layer, or they would
+  # still be in the image
+  && rm -f /usr/lib/libLLVM*.so* /usr/lib/llvm*/lib/libLLVM*.so* /usr/lib/libgallium-*.so \
   && mkdir -p /app/build \
   && adduser -D -u 1001 chrome \
   && chown -R chrome:chrome /app

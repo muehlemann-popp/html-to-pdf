@@ -89,3 +89,5 @@ None in flight.
   vs 155 (full browser and headless shell): memory, latency and reference-PDF comparison.
 - [Chromium sandbox](research/2026-10-26-chromium-sandbox.md) — what the user-namespace sandbox
   needs in a container and what it costs: seccomp, memory, latency, output.
+- [Mesa and LLVM](research/2026-11-07-mesa-llvm.md) — Chromium never loads Mesa's Gallium drivers
+  or LLVM with `--disable-gpu`; deleting them saves ~200 MiB of the image with identical output.
