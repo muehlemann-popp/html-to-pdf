@@ -74,6 +74,8 @@ jobs:
             ./docker-bake.hcl
             ${{ steps.meta.outputs.bake-file }}
           targets: build
+          # ignore-error: main and a tag build in parallel (different concurrency groups) and may write the
+          # same scope; a failed cache upload must not fail a release whose image is already pushed
           set: |
             *.cache-from=type=gha,scope=${{ steps.cache.outputs.scope }}
-            *.cache-to=type=gha,scope=${{ steps.cache.outputs.scope }},mode=max
+            *.cache-to=type=gha,scope=${{ steps.cache.outputs.scope }},mode=max,ignore-error=true
