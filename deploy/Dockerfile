@@ -1,14 +1,15 @@
 # The Alpine release pins the Chromium major (3.24 ships Chromium 155), keep it in sync with
 # the puppeteer version in package.json, see AGENTS.md. Node comes from the official image of the same
-# Alpine release: both tags below must name the same release (the node binary links against its musl
-# and libstdc++).
+# Alpine release: the `node:…-alpine3.XX` and `alpine:3.XX` tags below must name the same release (the
+# node binary links against its musl and libstdc++).
 FROM node:26-alpine3.24 AS node
 
 # corepack runs the yarn from `packageManager` in package.json, which then uses the release committed
 # in .yarn/releases (node images ship no yarn since Node 26, and no corepack since 25). Plain
 # JavaScript, so installed once on the build machine's platform, for the stages that run yarn; the
-# prod image has neither npm nor corepack nor yarn
-FROM --platform=$BUILDPLATFORM node AS corepack
+# prod image has neither npm nor corepack nor yarn. The image, not the `node` stage: `--platform` only
+# takes effect on an image, a stage is already built for the target platform
+FROM --platform=$BUILDPLATFORM node:26-alpine3.24 AS corepack
 
 RUN npm install --global corepack@0.36.0
 
