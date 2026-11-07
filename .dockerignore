@@ -5,6 +5,14 @@ node_modules/
 build/
 # skip editors
 .idea/
+# version control, CI and agent files: not needed inside, and .git changes with every commit, which
+# would invalidate the `COPY . /app` layers; .claude/ may hold whole worktrees that tsc and eslint
+# would pick up
+.git
+.github/
+.claude/
+# contributor docs; README.md stays, scripts/readme-html.mjs renders it into the bundle
+docs/
 # skip dotfiles not needed inside
 .dockerignore
 .gitignore

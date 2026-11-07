@@ -32,6 +32,10 @@ point it at one with `PUPPETEER_EXECUTABLE_PATH`, or run tests in the `test` ima
   ([ADR 0001](docs/adr/0001-chromium-headless-shell.md)). The `node:*-alpine3.XX` tag in
   `deploy/Dockerfile` decides the Chromium major; keep `puppeteer` in `package.json` on the release
   that targets the same major (its `PUPPETEER_REVISIONS`).
+- The `builder` stage of `deploy/Dockerfile` runs on the build machine's platform (`$BUILDPLATFORM`)
+  and its `build/main.prod.js` goes into the images of every platform, so the bundle must stay
+  platform-independent JavaScript (no native addons). Dependencies are installed before the source
+  is copied; keep that order so a source change does not re-run `yarn install`.
 - **Rendering changes need evidence.** Any change to Chromium, puppeteer, launch flags or fonts:
   run `scripts/benchmark.mjs` against the old and new image and compare the outputs of
   `test/reference/requests/` (page count, size, visual diff) and the memory numbers.

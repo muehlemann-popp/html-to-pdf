@@ -39,11 +39,27 @@ EXPOSE 4000
 CMD ["/docker-entrypoint.sh"]
 
 
-FROM base AS builder
+# Bundles the service into build/main.prod.js, plain JavaScript that is the same for every platform:
+# it runs on the build machine's own platform (no QEMU for the arm64 image of a multi-platform build)
+# and needs no Chromium, so it does not start from `base`
+FROM --platform=$BUILDPLATFORM node:26-alpine3.24 AS builder
+
+# see `base`
+RUN npm install --global corepack@0.36.0 && corepack enable yarn
+
+WORKDIR /app
+
+ENV \
+  PUPPETEER_SKIP_DOWNLOAD=1 \
+  COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+
+# dependencies first, so this layer is reused until the manifests or the lockfile change
+COPY package.json yarn.lock .yarnrc.yml ./
+COPY .yarn/releases .yarn/releases
+RUN yarn install
 
 COPY . /app
-
-RUN yarn install && yarn build
+RUN yarn build
 
 
 FROM base AS prod
@@ -58,34 +74,36 @@ USER chrome
 
 FROM base AS dev
 
+# dependencies first, as in `builder`; installed as `chrome`, who runs the dev server
+COPY --chown=chrome:chrome package.json yarn.lock .yarnrc.yml ./
+COPY --chown=chrome:chrome .yarn/releases .yarn/releases
+USER chrome
+RUN yarn install
+
+COPY --chown=chrome:chrome . /app
+
+# last: a different value would otherwise invalidate the install above
 ARG RELEASE_ID
 ARG CI_BUILD_DATE
 ENV \
   RELEASE_ID=$RELEASE_ID \
   CI_BUILD_DATE=$CI_BUILD_DATE
-
-COPY . /app
-
-RUN chown -R chrome ./
-
-USER chrome
-
-RUN yarn install
 
 
 FROM base AS test
 
+# dependencies first, as in `builder`. As in prod, everything runs as `chrome`: Chromium refuses to
+# start its sandbox as root (CHROME_SANDBOX=1)
+COPY --chown=chrome:chrome package.json yarn.lock .yarnrc.yml ./
+COPY --chown=chrome:chrome .yarn/releases .yarn/releases
+USER chrome
+RUN yarn install
+
+COPY --chown=chrome:chrome . /app
+
+# last: a different value would otherwise invalidate the install above
 ARG RELEASE_ID
 ARG CI_BUILD_DATE
 ENV \
   RELEASE_ID=$RELEASE_ID \
   CI_BUILD_DATE=$CI_BUILD_DATE
-
-COPY . /app
-
-RUN chown -R chrome ./
-
-# as in prod: Chromium refuses to start its sandbox as root (CHROME_SANDBOX=1)
-USER chrome
-
-RUN yarn install
