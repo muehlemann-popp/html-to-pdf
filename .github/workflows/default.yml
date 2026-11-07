@@ -19,8 +19,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # the Docker daemon's own BuildKit: with its containerd image store (Docker 29 on the runner) it
+      # exports the cache and builds straight into the image store, while the default docker-container
+      # driver would load the 1.7 GB test image as a tarball (~20 s)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
+        with:
+          driver: docker
 
       # one cache per day: a cached `apk upgrade` layer would keep the Alpine packages (Chromium) of the
       # day it was built, so the cache starts over daily; within a day every run reuses its layers
@@ -38,7 +43,8 @@ jobs:
           tags: ${{ env.TAG }}
           load: true
           cache-from: type=gha,scope=${{ steps.cache.outputs.scope }}
-          cache-to: type=gha,scope=${{ steps.cache.outputs.scope }},mode=max
+          # a failed cache upload (e.g. another run writing the same scope) must not skip the tests
+          cache-to: type=gha,scope=${{ steps.cache.outputs.scope }},mode=max,ignore-error=true
 
       - name: Run lint in a container
         run: docker run --rm ${TAG} yarn lint --max-warnings 0
