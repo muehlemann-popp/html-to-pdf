@@ -42,6 +42,10 @@ point it at one with `PUPPETEER_EXECUTABLE_PATH`, or run tests in the `test` ima
   the site's (`ERR_ABORTED`, `ERR_FAILED`, …) take the retry and become a 502 only if the fresh
   browser fails the same way (`toRetriedTargetError`). Keep that split when adding
   error handling; the acceptance tests fail if a caller error makes the process exit.
+- SIGTERM/SIGINT stop the service gracefully (`src/util/graceful-shutdown.ts`, README "Stopping and
+  restarts"): `deploy/docker-entrypoint.sh` forwards them to node and does not restart it afterwards.
+  Keep puppeteer's own signal handling off (`handleSIGTERM`/`handleSIGINT: false`), or it kills
+  Chromium under the requests the shutdown lets finish.
 - One shared browser, one `BrowserContext` per request (`src/controller/browser.ts`,
   [ADR 0002](docs/adr/0002-shared-browser.md)). Never let a capture touch another request's context,
   and always release the lease, also on errors. Launch flags are measured: `--single-process` and

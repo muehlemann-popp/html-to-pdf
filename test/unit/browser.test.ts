@@ -122,6 +122,14 @@ describe('shared browser', () => {
     expect(on).toContain('--disable-setuid-sandbox')
   })
 
+  it('leaves SIGTERM and SIGINT to the graceful shutdown instead of letting puppeteer kill Chromium', async () => {
+    await (await acquireContext()).release(false)
+    expect(puppeteer.launch).toHaveBeenCalledWith(expect.objectContaining({
+      handleSIGTERM: false,
+      handleSIGINT: false,
+    }))
+  })
+
   it('launches a new browser when the previous launch failed', async () => {
     vi.mocked(puppeteer.launch).mockRejectedValueOnce(new Error('launch failed'))
     await expect(acquireContext()).rejects.toThrow('launch failed')

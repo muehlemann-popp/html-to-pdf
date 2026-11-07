@@ -54,6 +54,21 @@ Optional environment variables:
 - `SENTRY_DSN`, `ENV`, `RELEASE_ID`: error reporting to Sentry.
 - `CHROME_SANDBOX`, default off: `1` runs Chromium with its sandbox, which needs a seccomp profile,
   see [Chromium sandbox](#sandbox).
+- `SHUTDOWN_TIMEOUT_MS`, default `25000`: how long requests in flight may take after `SIGTERM`, see
+  [Stopping](#stopping).
+
+### <a name="stopping">Stopping and restarts</a>
+
+On `SIGTERM` or `SIGINT` (`docker stop`, a Kubernetes rollout or scale-down) the service stops
+accepting connections, lets the requests in flight finish, closes Chromium and exits with `0`.
+Requests still running after `SHUTDOWN_TIMEOUT_MS` are cut off and it exits with `1`. Give the
+container at least that long before it is killed: `docker stop` waits only 10 s by default
+(`docker stop --time 30`, Compose `stop_grace_period: 30s`); Kubernetes waits 30 s
+(`terminationGracePeriodSeconds`), which the default of 25 s fits into. Requests with a `timeout`
+longer than the grace period can still be cut off.
+
+When the node process exits on its own (an error it cannot recover from, see [Errors](#errors), or a
+failure at startup), the container's entrypoint starts it again after 1 s.
 
 ### <a name="sandbox">Chromium sandbox</a>
 
