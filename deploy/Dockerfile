@@ -18,8 +18,8 @@ FROM alpine:3.24 AS base
 # chrome-headless-shell (the lightweight "old headless" build) of this Alpine release, not the full
 # browser: same Skia PDF output at about half the memory, see docs/adr/0001-chromium-headless-shell.md.
 # libstdc++ and libatomic (amd64) are what the node binary links against, as in the node image (check
-# with `ldd /usr/local/bin/node` on every platform when changing the release). `chrome` keeps uid 1001, which it had next to the node image's `node` user
-# (README: runAsUser 1001)
+# with `ldd /usr/local/bin/node` on every platform when changing the release). `chrome` keeps uid
+# 1001, which it had next to the node image's `node` user (README: runAsUser 1001)
 RUN \
   apk upgrade --no-cache --available \
   && apk add --no-cache \
