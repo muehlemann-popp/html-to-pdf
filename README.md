@@ -52,6 +52,9 @@ Optional environment variables:
 - `BROWSER_IDLE_TIMEOUT_MS`, default `30000`: the browser is closed after this long without requests
   and started again by the next one.
 - `SENTRY_DSN`, `ENV`, `RELEASE_ID`: error reporting to Sentry.
+- `SENTRY_DEBUG`, default off: `1` adds `GET /debug-sentry`, which throws an error so you can check
+  that it arrives in Sentry. Leave it off in production: every request to it sends an event. Without
+  it the path answers `404` like any unknown one.
 - `CHROME_SANDBOX`, default off: `1` runs Chromium with its sandbox, which needs a seccomp profile,
   see [Chromium sandbox](#sandbox).
 

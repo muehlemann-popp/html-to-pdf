@@ -62,7 +62,8 @@ describe('Basic routing', () => {
       .expect(200)
   })
 
-  it.each(['/nope', '/nope/deeper', '/pdf/nope'])('should answer %s with 404', async (path) => {
+  // /debug-sentry exists only with SENTRY_DEBUG=1 (test/acceptance/sentry.test.ts), unset here
+  it.each(['/nope', '/nope/deeper', '/pdf/nope', '/debug-sentry'])('should answer %s with 404', async (path) => {
     await request(app)
       .get(path)
       .expect('Content-Type', /application\/json/)
