@@ -32,6 +32,10 @@ point it at one with `PUPPETEER_EXECUTABLE_PATH`, or run tests in the `test` ima
   ([ADR 0001](docs/adr/0001-chromium-headless-shell.md)). The `node:*-alpine3.XX` tag in
   `deploy/Dockerfile` decides the Chromium major; keep `puppeteer` in `package.json` on the release
   that targets the same major (its `PUPPETEER_REVISIONS`).
+- The `builder` stage of `deploy/Dockerfile` runs on the build machine's platform (`$BUILDPLATFORM`)
+  and its `build/main.prod.js` goes into the images of every platform, so the bundle must stay
+  platform-independent JavaScript (no native addons). Dependencies are installed before the source
+  is copied; keep that order so a source change does not re-run `yarn install`.
 - **Rendering changes need evidence.** Any change to Chromium, puppeteer, launch flags or fonts:
   run `scripts/benchmark.mjs` against the old and new image and compare the outputs of
   `test/reference/requests/` (page count, size, visual diff) and the memory numbers.
@@ -42,14 +46,30 @@ point it at one with `PUPPETEER_EXECUTABLE_PATH`, or run tests in the `test` ima
   the site's (`ERR_ABORTED`, `ERR_FAILED`, …) take the retry and become a 502 only if the fresh
   browser fails the same way (`toRetriedTargetError`). Keep that split when adding
   error handling; the acceptance tests fail if a caller error makes the process exit.
+- SIGTERM/SIGINT stop the service gracefully (`src/util/graceful-shutdown.ts`, README "Stopping and
+  restarts"): `deploy/docker-entrypoint.sh` forwards them to node and does not restart it afterwards.
+  Keep puppeteer's own signal handling off (`handleSIGTERM`/`handleSIGINT: false`), or it kills
+  Chromium under the requests the shutdown lets finish.
 - One shared browser, one `BrowserContext` per request (`src/controller/browser.ts`,
   [ADR 0002](docs/adr/0002-shared-browser.md)). Never let a capture touch another request's context,
   and always release the lease, also on errors. Launch flags are measured: `--single-process` and
   `--in-process-gpu` crash Chromium 155; read ADR 0001/0002 before adding any.
+- Local files must never be printable ([url restrictions](docs/features/url-restrictions.md)). Every
+  URL the service itself navigates to goes through `toAllowedUrl` (`src/util/url-guard.ts`, http(s)
+  only); never add `--disable-web-security` or `--allow-file-access*`, which let a page print
+  `file://`. The acceptance tests "local files cannot be printed" pin this; keep them passing.
 - The Chromium sandbox is opt-in (`CHROME_SANDBOX=1`, [ADR 0003](docs/adr/0003-opt-in-chromium-sandbox.md))
   and needs `deploy/chrome-seccomp.json`; CI runs the suite in both modes, the `test` image runs as
   `chrome` because Chromium refuses its sandbox as root. Keep both modes working, and re-derive the
   profile from Docker's default rather than editing unrelated rules. Never edit
   `deploy/chrome-seccomp-kubernetes.json` by hand: regenerate it with
   `node scripts/seccomp-kubernetes.mjs` (a unit test fails if it is out of date).
+- Majors held back on purpose, do not bump them as routine updates: `@sentry/node` stays on 10,
+  because 11 sends request bodies and cookies by default (`dataCollection`; here the callers' HTML)
+  and deprecates `setupExpressErrorHandler` (`src/instrument.ts`); `typescript` stays on 6, the last
+  release with the JavaScript API that typescript-eslint needs, since 7 is the new native compiler.
+- `release.yml` pins the binfmt (QEMU) image instead of `setup-qemu-action`'s default `latest`, so
+  the emulator only changes in a reviewed commit. The pin came in with
+  [#7](https://github.com/muehlemann-popp/html-to-pdf/pull/7) as the workaround for node
+  crashing under QEMU 7 on arm64 ([actions/setup-node#488](https://github.com/actions/setup-node/issues/488)).
 - Conventional commit prefixes (`feat:`, `fix:`, `docs:`, `chore:`); one topic per pull request.

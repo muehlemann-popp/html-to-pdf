@@ -145,11 +145,14 @@ router.get('/metrics', async (req: Request, res: Response) => {
 })
 
 /**
- * Sentry test route
+ * Sentry test route, only with SENTRY_DEBUG=1: every hit sends an event to Sentry, so it must not be
+ * reachable by anyone in production. Without it the path is answered by the catch-all 404 below.
  */
-router.get('/debug-sentry', () => {
-  throw new Error('Test Sentry error')
-})
+if (process.env.SENTRY_DEBUG === '1') {
+  router.get('/debug-sentry', () => {
+    throw new Error('Test Sentry error')
+  })
+}
 
 /**
  * Version route

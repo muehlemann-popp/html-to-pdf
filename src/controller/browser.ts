@@ -29,6 +29,10 @@ const launch = async (): Promise<Browser> => {
   const browser = await puppeteer.launch({
     // chrome-headless-shell in the image; with a regular Chrome binary (local dev) this is new headless
     headless: 'shell',
+    // puppeteer would close Chromium on these right away, killing the renders that the graceful
+    // shutdown (~/util/graceful-shutdown) lets finish before it closes the browser itself
+    handleSIGINT: false,
+    handleSIGTERM: false,
     // We try to solve issues with google chrome sometimes stopping to work
     // As suggested here we try to use pipe instead of websocket: https://github.com/puppeteer/puppeteer/issues/2735
     // pipe: true,

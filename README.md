@@ -19,6 +19,8 @@ Chromium 155), driven by the puppeteer release that targets the same Chromium ma
 page that exploits a Chromium bug runs code with the rights of the service. The
 [sandbox](#sandbox) can be turned on, but even then the browser loads any URL a page asks for,
 internal ones included. Run it in your private network, where you control **what** you are printing.
+Local files are not printable: `url` only accepts `http(s)`, and pages cannot load `file://`
+resources ([details](docs/features/url-restrictions.md)).
 
 
 ## <a name="images">Docker Images</a>
@@ -59,8 +61,26 @@ Optional environment variables:
 - `BROWSER_IDLE_TIMEOUT_MS`, default `30000`: the browser is closed after this long without requests
   and started again by the next one.
 - `SENTRY_DSN`, `ENV`, `RELEASE_ID`: error reporting to Sentry.
+- `SENTRY_DEBUG`, default off: `1` adds `GET /debug-sentry`, which throws an error so you can check
+  that it arrives in Sentry. Leave it off in production: every request to it sends an event. Without
+  it the path answers `404` like any unknown one.
 - `CHROME_SANDBOX`, default off: `1` runs Chromium with its sandbox, which needs a seccomp profile,
   see [Chromium sandbox](#sandbox).
+- `SHUTDOWN_TIMEOUT_MS`, default `25000`: how long requests in flight may take after `SIGTERM`, see
+  [Stopping](#stopping).
+
+### <a name="stopping">Stopping and restarts</a>
+
+On `SIGTERM` or `SIGINT` (`docker stop`, a Kubernetes rollout or scale-down) the service stops
+accepting connections, lets the requests in flight finish, closes Chromium and exits with `0`.
+Requests still running after `SHUTDOWN_TIMEOUT_MS` are cut off and it exits with `1`. Give the
+container at least that long before it is killed: `docker stop` waits only 10 s by default
+(`docker stop --time 30`, Compose `stop_grace_period: 30s`); Kubernetes waits 30 s
+(`terminationGracePeriodSeconds`), which the default of 25 s fits into. Requests with a `timeout`
+longer than the grace period can still be cut off.
+
+When the node process exits on its own (an error it cannot recover from, see [Errors](#errors), or a
+failure at startup), the container's entrypoint starts it again after 1 s.
 
 ### <a name="sandbox">Chromium sandbox</a>
 
@@ -182,7 +202,9 @@ is provided `about:blank` will be printed.
   
   a POST accepting JSON body with following parameters:
   
-  - `url: string`, optional. Publicly accessible url of a page to be captured.
+  - `url: string`, optional. Publicly accessible url of a page to be captured. `http:` or `https:` only:
+    `file:`, `data:`, `chrome:` and every other scheme are answered with `400`
+    ([why](docs/features/url-restrictions.md)); put inline content in `html` instead.
   
   - `html: string`, optional. HTML page with all resources either embedded or referenced using absolute urls.
   
@@ -297,7 +319,7 @@ status that says whose problem it is:
 
 | Status | Cause | Service |
 | --- | --- | --- |
-| `400` | The URL cannot be loaded at all: malformed, blocked port or unsupported scheme (`net::ERR_UNSAFE_PORT`, `Cannot navigate to invalid URL`, …) | keeps running |
+| `400` | The URL cannot be loaded at all: not a string, malformed, a scheme other than `http`/`https` (`invalid URL: …`, `URL scheme file: is not allowed, …`; checked before the browser is used), or a blocked port (`net::ERR_UNSAFE_PORT`, …) | keeps running |
 | `400` | `waitForSelector` is not a non-empty string, or not a valid selector (`SyntaxError: … is not a valid selector`, `Unknown selector type: …`); checked before the page is loaded | keeps running |
 | `502` | The requested site failed: DNS, refused connection, TLS, certificate, redirects, broken response (`net::ERR_NAME_NOT_RESOLVED`, `net::ERR_CONNECTION_REFUSED`, `net::ERR_CERT_…`, …) | keeps running |
 | `502` | Any other `net::ERR_…` (`net::ERR_ABORTED`, `net::ERR_FAILED`, e.g. a URL that downloads a file) that a fresh browser reproduced | retried once on a fresh browser, since a failing browser reports these too; keeps running |

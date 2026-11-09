@@ -65,6 +65,8 @@ you supersede them with a new file rather than rewriting them.
   `503`, the `MAX_TIMEOUT_MS` cap; why queue time is not part of `timeout` and `/selfcheck` takes no slot.
 - [Waiting for a selector](features/wait-for-selector.md) — `waitForSelector`: capture once a page
   rendered by JavaScript (any framework) has added a marker element; shared timeout and error mapping.
+- [URL restrictions: no local files](features/url-restrictions.md) — `url` is http(s) only; which
+  ways into a local file Chromium closes by itself, and the tests that pin them.
 
 ### ADRs
 
@@ -79,8 +81,7 @@ you supersede them with a new file rather than rewriting them.
 
 ### Plans
 
-- [Dependency upgrade](plans/dependency-upgrade.md) — the phased plan out of Node 19 /
-  Puppeteer 19 / Express 4 / Sentry 7, with the four confirmed hard breaks called out.
+None in flight.
 
 ### Research
 

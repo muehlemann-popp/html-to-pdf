@@ -3,6 +3,8 @@ import {
 } from 'vitest'
 import { createServer } from 'node:http'
 import { AddressInfo } from 'node:net'
+import { resolve as resolvePath } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import request from 'supertest'
 import app from '~/app'
 import { closeBrowser } from '~/controller/browser'
@@ -60,9 +62,23 @@ describe('Basic routing', () => {
       // the IANA type, express 4 sent image/x-icon
       .expect('Content-Type', /image\/vnd\.microsoft\.icon/)
       .expect(200)
+      .buffer()
+      .parse((res, callback) => {
+        const chunks: Buffer[] = []
+        res.on('data', (chunk: Buffer) => chunks.push(chunk))
+        res.on('end', () => callback(null, Buffer.concat(chunks)))
+      })
+      .expect((res) => {
+        const ico = res.body as Buffer
+        // ICONDIR: reserved 0, type 1 (icon), then the number of images; 16, 32 and 48 px
+        expect([ico.readUInt16LE(0), ico.readUInt16LE(2), ico.readUInt16LE(4)]).toEqual([0, 1, 3])
+        expect([0, 1, 2].map((i) => ico[6 + 16 * i])).toEqual([16, 32, 48])
+        expect(ico.length).toBeLessThan(10000)
+      })
   })
 
-  it.each(['/nope', '/nope/deeper', '/pdf/nope'])('should answer %s with 404', async (path) => {
+  // /debug-sentry exists only with SENTRY_DEBUG=1 (test/acceptance/sentry.test.ts), unset here
+  it.each(['/nope', '/nope/deeper', '/pdf/nope', '/debug-sentry'])('should answer %s with 404', async (path) => {
     await request(app)
       .get(path)
       .expect('Content-Type', /application\/json/)
@@ -160,6 +176,127 @@ describe('Basic routing', () => {
       await request(app).get('/health').expect(200)
       const content: string = await downloadPDF((req) => req.get('/pdf'))
       testBlankPDFContent(content)
+    })
+  })
+
+  // The container's files (its own, mounted secrets, the Kubernetes service-account token) must not be
+  // printable. The url parameter is checked by ~/util/url-guard; everything a page loads by itself is
+  // kept off file: by Chromium, and these tests pin that, so a launch flag such as
+  // --allow-file-access-from-files or --disable-web-security, or a Chromium change, fails here.
+  // See docs/features/url-restrictions.md.
+  describe('local files cannot be printed', () => {
+    // a real local file: the favicon, a PNG inside an .ico, next to the tests (cwd is /app in the image)
+    const localImage = pathToFileURL(resolvePath('favicon.ico')).href
+    const missingImage = pathToFileURL(resolvePath('does-not-exist.ico')).href
+    const dataImage = 'data:image/png;base64,'
+      + 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+    // Skia writes one uncompressed /Subtype /Image dictionary per image (and per soft mask)
+    const imageCount = (content: string) => content.match(/\/Subtype \/Image\b/g)?.length ?? 0
+    // adds <div id="…">, for waitForSelector to tell which branch the page took
+    const withMark = (body: string) => `<head><script>
+      function mark(id) { const d = document.createElement('div'); d.id = id; document.body.append(d) }
+    </script></head><body>${body}</body>`
+
+    it.each([
+      'file:///etc/passwd',
+      'file:///proc/self/environ',
+      'FILE:///etc/passwd',
+      ' file:///etc/passwd',
+      'view-source:file:///etc/passwd',
+      'chrome://version',
+      'data:text/html,<iframe src="file:///etc/passwd"></iframe>',
+    ])('rejects the url %j with a 400, without retry', async (url) => {
+      await request(app).post('/pdf').send({ url })
+        .expect('Content-Type', /application\/json/)
+        .expect(400)
+        .expect((res) => {
+          expect(res.body.status).toBe('error')
+          expect(res.body.message).toMatch(/scheme .* is not allowed/)
+        })
+    })
+
+    it.each(['/pdf', '/screenshot'])('rejects a file:// url given to GET %s', async (path) => {
+      await request(app).get(`${path}?${new URLSearchParams({ url: 'file:///etc/passwd' })}`)
+        .expect('Content-Type', /application\/json/)
+        .expect(400)
+      // repeated, the query parameter is an array, which used to reach page.goto
+      await request(app).get(`${path}?url=https://example.com&url=file:///etc/passwd`)
+        .expect(400)
+        .expect((res) => expect(res.body.message).toBe('url must be a string'))
+    })
+
+    // the img fires error (#blocked) when Chromium refuses the file, load (#leaked) when it reads it;
+    // waitForSelector('#blocked') answers 504 instead of 200 if the file was read
+    it('refuses a file:// image in html', async () => {
+      const html = withMark(`<img src="${localImage}" onload="mark('leaked')" onerror="mark('blocked')">`)
+      testPDFContent(await downloadPDF((req) => req.post('/pdf').send({ html, waitForSelector: '#blocked', timeout: 5000 })))
+      // control: the same markup with an allowed image takes the other branch
+      const control = withMark(`<img src="${dataImage}" onload="mark('loaded')" onerror="mark('failed')">`)
+      testPDFContent(await downloadPDF((req) => req.post('/pdf').send({ html: control, waitForSelector: '#loaded', timeout: 5000 })))
+    })
+
+    it('refuses a file:// fetch in html', async () => {
+      const html = withMark(`<script>
+        fetch(${JSON.stringify(localImage)}).then(() => mark('leaked'), () => mark('blocked'))
+      </script>`)
+      testPDFContent(await downloadPDF((req) => req.post('/pdf').send({ html, waitForSelector: '#blocked', timeout: 5000 })))
+    })
+
+    // a navigation that succeeded would replace the document, and #stayed would never be added
+    it('refuses a file:// navigation started by the page', async () => {
+      const html = withMark(`<script>
+        location.href = ${JSON.stringify(localImage)}
+        setTimeout(() => mark('stayed'), 1000)
+      </script>`)
+      testPDFContent(await downloadPDF((req) => req.post('/pdf').send({ html, waitForSelector: '#stayed', timeout: 5000 })))
+    })
+
+    // an iframe fires load whether its document was refused or not, so the printed images tell instead
+    it.each([
+      ['an iframe', (src: string) => `<iframe src="${src}" style="width: 300px; height: 300px"></iframe>`],
+      ['a CSS background', (src: string) => `<div style="width: 64px; height: 64px; background: url(${src})"></div>`],
+    ])('prints no file:// image through %s', async (_, markup) => {
+      const html = (src: string) => withMark(markup(src))
+      const control = await downloadPDF((req) => req.post('/pdf').send({ html: html(dataImage) }))
+      expect(imageCount(control)).toBeGreaterThan(0)
+      const content = await downloadPDF((req) => req.post('/pdf').send({ html: html(localImage) }))
+      expect(imageCount(content)).toBe(0)
+    })
+
+    // the header shows a broken-image icon for any file:// image; a read file would change the output.
+    // Skia stamps the second the PDF was written, so the dates are left out of the comparison
+    it('prints no file:// image in the PDF header template', async () => {
+      const pdf = async (src: string) => (await downloadPDF((req) => req.post('/pdf').send({
+        html: '<p>x</p>',
+        pdfOptions: {
+          displayHeaderFooter: true, margin: { top: '80px' }, headerTemplate: `<img src="${src}" style="height: 40px">`,
+        },
+      }))).replace(/\/(CreationDate|ModDate) \(D:[^)]*\)/g, '')
+      expect(await pdf(localImage)).toBe(await pdf(missingImage))
+    })
+
+    describe('a site that redirects to file://', () => {
+      const redirecting = createServer((req, res) => {
+        res.writeHead(302, { Location: 'file:///etc/passwd' })
+        res.end()
+      })
+      beforeAll(() => new Promise<void>((resolve) => { redirecting.listen(0, '127.0.0.1', resolve) }))
+      afterAll(() => {
+        redirecting.closeAllConnections()
+        redirecting.close()
+      })
+
+      it('is answered with a 502, the redirect is not followed', async () => {
+        const url = `http://127.0.0.1:${(redirecting.address() as AddressInfo).port}/`
+        await request(app).post('/pdf').send({ url })
+          .expect(502)
+          .expect((res) => expect(res.body.message).toMatch(/ERR_UNSAFE_REDIRECT/))
+      })
+    })
+
+    it('stays healthy and keeps printing afterwards', async () => {
+      await request(app).get('/health').expect(200)
+      testBlankPDFContent(await downloadPDF((req) => req.get('/pdf')))
     })
   })
 
