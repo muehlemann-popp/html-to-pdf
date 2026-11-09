@@ -113,6 +113,8 @@ router.get('/health', async (req: Request, res: Response) => {
  */
 router.get('/selfcheck', async (req: Request, res: Response) => {
   await logRequest('/selfcheck', res, false, async () => {
+    // no capture slot (~/controller/capture-slots): readiness says whether this instance can render,
+    // not whether it is busy, so a full queue never fails the probe; the capture is tiny
     const buffer = await capture(CaptureType.PDF, {
       html: '<html><body><p>test</p></body></html>',
       waitUntil: ['load'],

@@ -1,6 +1,7 @@
 import { Response } from 'express'
 import { CaptureMime, CaptureParameters, CaptureType } from '~/interface'
 import capture from '~/controller/capture'
+import { CaptureRejectedError, captureSlots } from '~/controller/capture-slots'
 import { registerUnrecoverableError } from '~/util/error-trigger'
 import { TargetError, toRetriedTargetError } from '~/util/target-error'
 import timestamp from '~/util/timestamp'
@@ -28,8 +29,16 @@ const captureAndReturn = async (
     return value
   })
   const requestInfo = `Capture ${CaptureType[type]} with params ${paramsString}`
+  // a client that hangs up while its capture is still queued gives up its place in the queue
+  const hangUp = new AbortController()
+  res.on('close', () => {
+    if (!res.writableFinished) {
+      hangUp.abort()
+    }
+  })
   try {
-    await processRequestError(requestInfo, res, true, async () => {
+    // one slot for the capture and its retry, waiting in the queue first if all slots are busy
+    await processRequestError(requestInfo, res, true, () => captureSlots.run(async () => {
       const captureAndProcess = async () => {
         const result = await capture(type, params)
         res.attachment(`${fileName}.${mimeToExtension[mime]}`)
@@ -53,11 +62,12 @@ const captureAndReturn = async (
           throw toRetriedTargetError(retryError)
         }
       }
-    })
+    }, hangUp.signal))
     return true
   } catch (e) {
     // already answered with its status by processRequestError, the service itself is fine
-    if (e instanceof TargetError) {
+    // (a rejected capture never ran, so it is not retried either)
+    if (e instanceof TargetError || e instanceof CaptureRejectedError) {
       return false
     }
     // eslint-disable-next-line no-console

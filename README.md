@@ -44,12 +44,19 @@ One headless Chromium serves all requests, each request in its own browser conte
 cookies, storage and cache). Measured on arm64 (see
 [docs/research](docs/research/2026-10-26-chromium-155-memory.md)): ~25 MiB idle, ~80–120 MiB for one
 request at a time, ~265 MiB peak for 8 concurrent requests, which also run fine under a 192 MiB
-container limit. When rendering fails twice in a row the node process exits and the entrypoint
-restarts it; pages that cannot be loaded do not count, see [Errors](#errors).
+container limit. At most 8 captures render at once, more wait in a queue, and a request that finds the
+queue full is answered with `503` ([details](docs/features/capture-limits.md)). When rendering fails
+twice in a row the node process exits and the entrypoint restarts it; pages that cannot be loaded do
+not count, see [Errors](#errors).
 
 Optional environment variables:
 
 - `PORT`, default `4000`.
+- `MAX_CONCURRENT_CAPTURES`, default `8`: captures that render at the same time.
+- `MAX_QUEUED_CAPTURES`, default `32`: captures that wait for a free slot, in arrival order; any
+  request beyond that is answered with `503` and `Retry-After: 1`. `0` rejects as soon as all slots
+  are busy. A client that hangs up while queued gives up its place. `/selfcheck` takes no slot.
+- `MAX_TIMEOUT_MS`, default `120000`: a larger `timeout` in a request is lowered to this.
 - `BROWSER_MAX_CAPTURES`, default `100`: the browser is replaced after this many captures.
 - `BROWSER_IDLE_TIMEOUT_MS`, default `30000`: the browser is closed after this long without requests
   and started again by the next one.
@@ -207,7 +214,9 @@ is provided `about:blank` will be printed.
     `::-p-xpath(…)`, …) work. Loading and this wait together are bounded by `timeout`: a selector that
     does not appear in time is answered with `504`, an invalid one with `400`, see [Errors](#errors).
   
-  - `timeout: number`, optional, milliseconds, defaults to 60000.
+  - `timeout: number`, optional, milliseconds, defaults to 60000. At most `MAX_TIMEOUT_MS` (default
+    120000): a larger value is lowered to it. Anything but a non-negative number is answered with `400`.
+    Time spent waiting for a free slot (see `MAX_QUEUED_CAPTURES`) does not count.
     See [puppeteer docs for `page.setDefaultNavigationTimeout()`](https://pptr.dev/api/puppeteer.page.setdefaultnavigationtimeout)
 
   Simplest payload can be similar to:
@@ -283,8 +292,13 @@ status that says whose problem it is:
 | `502` | Any other `net::ERR_…` (`net::ERR_ABORTED`, `net::ERR_FAILED`, e.g. a URL that downloads a file) that a fresh browser reproduced | retried once on a fresh browser, since a failing browser reports these too; keeps running |
 | `504` | The page did not finish loading within `timeout`, including `networkidle0`/`networkidle2` and `waitForSelector` (`Waiting for selector … failed`) | keeps running |
 | `500` | The service failed to render (e.g. Chromium crashed) | retried once on a fresh browser; if the retry fails too, the process exits and the container entrypoint restarts it |
+| `503` | Too busy: `MAX_CONCURRENT_CAPTURES` captures are rendering and `MAX_QUEUED_CAPTURES` are waiting (`too many captures: …`); answered at once with `Retry-After: 1` | keeps running |
 
-`400`, `502` and `504` are not reported to Sentry and, except for the second `502` row, not retried.
+`400`, `502`, `503` and `504` are not reported to Sentry and, except for the second `502` row, not
+retried by the service. A `503` is safe to retry after `Retry-After` seconds.
+
+A `timeout` that is not a non-negative number is answered with `400` like an invalid
+`waitForSelector`, before the page is loaded.
 
 
 ## <a name="development">Development</a>
