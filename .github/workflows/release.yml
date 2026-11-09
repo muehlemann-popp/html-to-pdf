@@ -7,29 +7,40 @@ on:
     tags:
       - 'v*'
 
+# reads the repository; DockerHub is reached with its own secrets, the layer cache needs no token scope
+permissions:
+  contents: read
+
+# one release build per branch or tag at a time, never cancelled half-pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v7
+      # actions are pinned to the commit of a release, see the comment after each
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # needed to properly run buildx, otherwise buildx fails
       # https://github.com/docker/buildx/issues/495#issuecomment-1043341496
       - name: Set up QEMU
         id: qemu
-        uses: docker/setup-qemu-action@v4
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
         with:
-          image: tonistiigi/binfmt:qemu-v10.2.3
+          # the newest binfmt release, pinned by digest: tags on Docker Hub can be moved
+          image: tonistiigi/binfmt:qemu-v10.2.3@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
           platforms: amd64,arm64
 
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
         with:
           platforms: amd64,arm64
 
       - name: Define docker image metadata
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         id: meta
         with:
           images: muehlemannpopp/html-to-pdf
@@ -40,13 +51,21 @@ jobs:
             type=sha,prefix=git-,format=short
 
       - name: Login to DockerHub
-        uses: docker/login-action@v4
+        # not v4.8.0, which v4 points to: published 2026-11-05, younger than 14 days (AGENTS.md)
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # one cache per day, as in default.yml: the published image must not ship the Alpine packages
+      # (Chromium) of an old cached `apk upgrade` layer. Pushing main and then a tag on the same day, the
+      # tag's build reuses everything
+      - name: Name the layer cache of the day
+        id: cache
+        run: echo "scope=release-$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
-        uses: docker/bake-action@v7
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           # build from the checkout (path context), not bake-action's default git context
           source: .
@@ -55,3 +74,8 @@ jobs:
             ./docker-bake.hcl
             ${{ steps.meta.outputs.bake-file }}
           targets: build
+          # ignore-error: main and a tag build in parallel (different concurrency groups) and may write the
+          # same scope; a failed cache upload must not fail a release whose image is already pushed
+          set: |
+            *.cache-from=type=gha,scope=${{ steps.cache.outputs.scope }}
+            *.cache-to=type=gha,scope=${{ steps.cache.outputs.scope }},mode=max,ignore-error=true
