@@ -10,6 +10,7 @@ import puppeteer, {
 import { acquireContext, Lease } from '~/controller/browser'
 import { CaptureParameters, CaptureType } from '~/interface'
 import { TargetError, toTargetError } from '~/util/target-error'
+import { toAllowedUrl } from '~/util/url-guard'
 import timestamp from '~/util/timestamp'
 
 export const defaultUrl = 'about:blank'
@@ -74,6 +75,9 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
   if (waitForSelector !== undefined && (typeof waitForSelector !== 'string' || !waitForSelector)) {
     throw new TargetError('waitForSelector must be a non-empty string', 400)
   }
+  // checked before a browser is opened: only http(s), never file:// (see ~/util/url-guard);
+  // html wins over url, an empty or missing url prints about:blank
+  const target = params.html ? null : toAllowedUrl(params.url || defaultUrl)
   try {
     let page: Page
     if (debugUsingBrowserless) {
@@ -130,7 +134,7 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
         }))
       }
     } else {
-      await navigate('page.goto', () => page.goto(url || defaultUrl, {
+      await navigate('page.goto', () => page.goto(target ?? defaultUrl, {
         waitUntil,
       }))
     }

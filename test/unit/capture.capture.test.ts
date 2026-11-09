@@ -185,6 +185,32 @@ describe('capture', () => {
     expect(browserProto.close).not.toHaveBeenCalled()
   })
 
+  it.each([
+    'file:///etc/passwd',
+    'FILE:///etc/passwd',
+    ' file:///etc/passwd',
+    'chrome://version',
+    'view-source:http://example.com',
+    'data:text/html,<p>x</p>',
+  ])('rejects the url %j as a 400 without opening a browser', async (url) => {
+    const error = await capture(CaptureType.PDF, { url }).catch((e) => e)
+    expect(error).toBeInstanceOf(TargetError)
+    expect(error.status).toBe(400)
+    expect(puppeteer.launch).not.toHaveBeenCalled()
+    expect(pageProto.goto).not.toHaveBeenCalled()
+  })
+
+  it('navigates to the url as it was checked, not to the string it was given', async () => {
+    await capture(CaptureType.PDF, { url: ' HTTPS://Example.com/a b' })
+    expect(pageProto.goto).toHaveBeenCalledWith('https://example.com/a%20b', expect.anything())
+  })
+
+  it('ignores the url when html is set, as before', async () => {
+    await capture(CaptureType.PDF, { html: '<html />', url: 'file:///etc/passwd' })
+    expect(pageProto.setContent).toHaveBeenCalled()
+    expect(pageProto.goto).not.toHaveBeenCalled()
+  })
+
   it('uses defaults as expected', async () => {
     await capture(CaptureType.PDF, {})
     expect(pageProto.pdf).toHaveBeenCalledWith({

@@ -46,6 +46,10 @@ point it at one with `PUPPETEER_EXECUTABLE_PATH`, or run tests in the `test` ima
   [ADR 0002](docs/adr/0002-shared-browser.md)). Never let a capture touch another request's context,
   and always release the lease, also on errors. Launch flags are measured: `--single-process` and
   `--in-process-gpu` crash Chromium 155; read ADR 0001/0002 before adding any.
+- Local files must never be printable ([url restrictions](docs/features/url-restrictions.md)). Every
+  URL the service itself navigates to goes through `toAllowedUrl` (`src/util/url-guard.ts`, http(s)
+  only); never add `--disable-web-security` or `--allow-file-access*`, which let a page print
+  `file://`. The acceptance tests "local files cannot be printed" pin this; keep them passing.
 - The Chromium sandbox is opt-in (`CHROME_SANDBOX=1`, [ADR 0003](docs/adr/0003-opt-in-chromium-sandbox.md))
   and needs `deploy/chrome-seccomp.json`; CI runs the suite in both modes, the `test` image runs as
   `chrome` because Chromium refuses its sandbox as root. Keep both modes working, and re-derive the

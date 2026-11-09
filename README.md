@@ -19,6 +19,8 @@ Chromium 155), driven by the puppeteer release that targets the same Chromium ma
 page that exploits a Chromium bug runs code with the rights of the service. The
 [sandbox](#sandbox) can be turned on, but even then the browser loads any URL a page asks for,
 internal ones included. Run it in your private network, where you control **what** you are printing.
+Local files are not printable: `url` only accepts `http(s)`, and pages cannot load `file://`
+resources ([details](docs/features/url-restrictions.md)).
 
 
 ## <a name="images">Docker Images</a>
@@ -175,7 +177,9 @@ is provided `about:blank` will be printed.
   
   a POST accepting JSON body with following parameters:
   
-  - `url: string`, optional. Publicly accessible url of a page to be captured.
+  - `url: string`, optional. Publicly accessible url of a page to be captured. `http:` or `https:` only:
+    `file:`, `data:`, `chrome:` and every other scheme are answered with `400`
+    ([why](docs/features/url-restrictions.md)); put inline content in `html` instead.
   
   - `html: string`, optional. HTML page with all resources either embedded or referenced using absolute urls.
   
@@ -270,7 +274,7 @@ status that says whose problem it is:
 
 | Status | Cause | Service |
 | --- | --- | --- |
-| `400` | The URL cannot be loaded at all: malformed, blocked port or unsupported scheme (`net::ERR_UNSAFE_PORT`, `Cannot navigate to invalid URL`, …) | keeps running |
+| `400` | The URL cannot be loaded at all: not a string, malformed, a scheme other than `http`/`https` (`invalid URL: …`, `URL scheme file: is not allowed, …`; checked before the browser is used), or a blocked port (`net::ERR_UNSAFE_PORT`, …) | keeps running |
 | `400` | `waitForSelector` is not a non-empty string, or not a valid selector (`SyntaxError: … is not a valid selector`, `Unknown selector type: …`); checked before the page is loaded | keeps running |
 | `502` | The requested site failed: DNS, refused connection, TLS, certificate, redirects, broken response (`net::ERR_NAME_NOT_RESOLVED`, `net::ERR_CONNECTION_REFUSED`, `net::ERR_CERT_…`, …) | keeps running |
 | `502` | Any other `net::ERR_…` (`net::ERR_ABORTED`, `net::ERR_FAILED`, e.g. a URL that downloads a file) that a fresh browser reproduced | retried once on a fresh browser, since a failing browser reports these too; keeps running |
