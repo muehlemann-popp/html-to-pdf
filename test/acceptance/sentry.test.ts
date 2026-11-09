@@ -25,6 +25,8 @@ let app: Application
 beforeAll(async () => {
   await new Promise<void>((resolve) => { ingest.listen(0, '127.0.0.1', resolve) })
   process.env.SENTRY_DSN = `http://key@127.0.0.1:${(ingest.address() as AddressInfo).port}/1`
+  // registers the /debug-sentry route, read when src/router.ts is loaded
+  process.env.SENTRY_DEBUG = '1'
   // in the order of src/server.ts, once SENTRY_DSN is set
   await import('~/instrument')
   app = (await import('~/app')).default
@@ -33,6 +35,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await close()
   delete process.env.SENTRY_DSN
+  delete process.env.SENTRY_DEBUG
   ingest.close()
 })
 
