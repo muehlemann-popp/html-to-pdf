@@ -62,6 +62,19 @@ describe('Basic routing', () => {
       // the IANA type, express 4 sent image/x-icon
       .expect('Content-Type', /image\/vnd\.microsoft\.icon/)
       .expect(200)
+      .buffer()
+      .parse((res, callback) => {
+        const chunks: Buffer[] = []
+        res.on('data', (chunk: Buffer) => chunks.push(chunk))
+        res.on('end', () => callback(null, Buffer.concat(chunks)))
+      })
+      .expect((res) => {
+        const ico = res.body as Buffer
+        // ICONDIR: reserved 0, type 1 (icon), then the number of images; 16, 32 and 48 px
+        expect([ico.readUInt16LE(0), ico.readUInt16LE(2), ico.readUInt16LE(4)]).toEqual([0, 1, 3])
+        expect([0, 1, 2].map((i) => ico[6 + 16 * i])).toEqual([16, 32, 48])
+        expect(ico.length).toBeLessThan(10000)
+      })
   })
 
   // /debug-sentry exists only with SENTRY_DEBUG=1 (test/acceptance/sentry.test.ts), unset here
