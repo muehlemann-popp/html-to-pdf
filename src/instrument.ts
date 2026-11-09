@@ -7,6 +7,9 @@ import { init } from '@sentry/node'
  so Sentry's automatic instrumentation, which patches packages as node loads them, never sees Express:
  errors reach Sentry through its Express error handler (src/app.ts) and the captureException calls of
  src/util/log-request.ts. Without SENTRY_DSN the SDK is not initialised at all and both are no-ops.
+
+ Stays on @sentry/node 10: 11 sends request bodies and cookies by default (`dataCollection`), which
+ here would be the callers' HTML, and deprecates setupExpressErrorHandler.
 */
 const { SENTRY_DSN, ENV, RELEASE_ID } = process.env
 

@@ -1,7 +1,8 @@
 # Chromium 155: memory, latency and rendering vs Chromium 112
 
 **Date:** 2026-10-26 · **Read against:** `main` (`4e3b4b6`) and branch `feat/chromium-155` ·
-**Context:** [dependency upgrade plan](../plans/dependency-upgrade.md), A1/A5 ·
+**Context:** [dependency upgrade plan](https://github.com/muehlemann-popp/html-to-pdf/blob/b063297e874c2c7412253de22d52920ed2f37b3e/docs/plans/dependency-upgrade.md)
+(removed once done), A1/A5 ·
 **Decisions taken from it:** [ADR 0001](../adr/0001-chromium-headless-shell.md),
 [ADR 0002](../adr/0002-shared-browser.md)
 

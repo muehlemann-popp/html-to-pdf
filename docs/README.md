@@ -81,8 +81,7 @@ you supersede them with a new file rather than rewriting them.
 
 ### Plans
 
-- [Dependency upgrade](plans/dependency-upgrade.md) — the phased plan out of Node 19 /
-  Puppeteer 19 / Express 4 / Sentry 7, with the four confirmed hard breaks called out.
+None in flight.
 
 ### Research
 
