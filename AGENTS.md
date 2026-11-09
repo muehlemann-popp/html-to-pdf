@@ -35,6 +35,9 @@ point it at one with `PUPPETEER_EXECUTABLE_PATH`, or run tests in the `test` ima
   same Alpine release: only its node binary is copied into `base`.
 - The prod image has no npm, npx, corepack or yarn: `base` starts from `alpine`, and only the `yarn`,
   `builder`, `dev` and `test` stages get corepack. Do not add them back to `base`.
+- `base` deletes Mesa's `libgallium` and `libLLVM` (~200 MiB), which Chromium never loads with
+  `--disable-gpu` ([research](docs/research/2026-11-07-mesa-llvm.md)). Repeat that check before
+  touching `--disable-gpu` or enabling WebGL/SwiftShader, and after Chromium or Mesa updates.
 - The `builder` stage of `deploy/Dockerfile` runs on the build machine's platform (`$BUILDPLATFORM`)
   and its `build/main.prod.js` goes into the images of every platform, so the bundle must stay
   platform-independent JavaScript (no native addons). Dependencies are installed before the source
