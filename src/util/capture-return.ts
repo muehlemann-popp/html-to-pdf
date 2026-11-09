@@ -2,6 +2,7 @@ import { Response } from 'express'
 import { CaptureMime, CaptureParameters, CaptureType } from '~/interface'
 import capture from '~/controller/capture'
 import { CaptureRejectedError, captureSlots } from '~/controller/capture-slots'
+import { CaptureOutcome, captureDuration } from '~/controller/metrics'
 import { registerUnrecoverableError } from '~/util/error-trigger'
 import { TargetError, toRetriedTargetError } from '~/util/target-error'
 import timestamp from '~/util/timestamp'
@@ -29,6 +30,11 @@ const captureAndReturn = async (
     return value
   })
   const requestInfo = `Capture ${CaptureType[type]} with params ${paramsString}`
+  const started = performance.now()
+  const observe = (outcome: CaptureOutcome) => captureDuration.observe(
+    { type: CaptureType[type].toLowerCase(), outcome },
+    (performance.now() - started) / 1000,
+  )
   // a client that hangs up while its capture is still queued gives up its place in the queue
   const hangUp = new AbortController()
   res.on('close', () => {
@@ -63,13 +69,20 @@ const captureAndReturn = async (
         }
       }
     }, hangUp.signal))
+    observe('ok')
     return true
   } catch (e) {
     // already answered with its status by processRequestError, the service itself is fine
     // (a rejected capture never ran, so it is not retried either)
-    if (e instanceof TargetError || e instanceof CaptureRejectedError) {
+    if (e instanceof TargetError) {
+      observe('target_error')
       return false
     }
+    if (e instanceof CaptureRejectedError) {
+      observe('rejected')
+      return false
+    }
+    observe('service_error')
     // eslint-disable-next-line no-console
     console.error(e)
     registerUnrecoverableError()

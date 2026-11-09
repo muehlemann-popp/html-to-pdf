@@ -2,7 +2,9 @@ import {
   afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest'
 import puppeteer from 'puppeteer'
+import type { Counter } from 'prom-client'
 import { acquireContext, closeBrowser } from '~/controller/browser'
+import { browserLaunches, browserRetirements } from '~/controller/metrics'
 
 const { newBrowser } = vi.hoisted(() => ({
   newBrowser: () => {
@@ -146,5 +148,55 @@ describe('shared browser', () => {
     })
     await expect(acquireContext()).rejects.toThrow('Target closed')
     expect(launched[0].close).toHaveBeenCalled()
+  })
+})
+
+describe('browser metrics', () => {
+  const count = async (counter: Counter, labels: Record<string, string>) => (await counter.get()).values
+    .find((v) => Object.entries(labels).every(([k, value]) => v.labels[k] === value))?.value ?? 0
+  const retired = (reason: string) => count(browserRetirements, { reason })
+
+  it('counts launches by result', async () => {
+    const ok = await count(browserLaunches, { result: 'ok' })
+    const failed = await count(browserLaunches, { result: 'failed' })
+    vi.mocked(puppeteer.launch).mockRejectedValueOnce(new Error('launch failed'))
+    await expect(acquireContext()).rejects.toThrow('launch failed')
+    await (await acquireContext()).release(false)
+    expect(await count(browserLaunches, { result: 'ok' })).toBe(ok + 1)
+    expect(await count(browserLaunches, { result: 'failed' })).toBe(failed + 1)
+  })
+
+  it('counts every retirement once, with its reason', async () => {
+    const before = Object.fromEntries(await Promise.all(
+      ['failure', 'max_captures', 'idle', 'disconnect', 'launch_failure'].map(async (r) => [r, await retired(r)]),
+    ))
+
+    // a failed capture; closing the browser then fires 'disconnected', which must not count again
+    await (await acquireContext()).release(true)
+    await flush()
+    const [[, onDisconnected]] = launched[0].on.mock.calls
+    onDisconnected()
+    expect(await retired('failure')).toBe(before.failure + 1)
+    expect(await retired('disconnect')).toBe(before.disconnect)
+
+    // a crash of the browser in use
+    await (await acquireContext()).release(false)
+    launched[1].on.mock.calls[0][1]()
+    expect(await retired('disconnect')).toBe(before.disconnect + 1)
+
+    for (let i = 0; i < 101; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await (await acquireContext()).release(false)
+    }
+    expect(await retired('max_captures')).toBe(before.max_captures + 1)
+
+    vi.useFakeTimers()
+    await (await acquireContext()).release(false)
+    await vi.advanceTimersByTimeAsync(30000)
+    expect(await retired('idle')).toBe(before.idle + 1)
+
+    vi.mocked(puppeteer.launch).mockRejectedValueOnce(new Error('launch failed'))
+    await expect(acquireContext()).rejects.toThrow('launch failed')
+    expect(await retired('launch_failure')).toBe(before.launch_failure + 1)
   })
 })

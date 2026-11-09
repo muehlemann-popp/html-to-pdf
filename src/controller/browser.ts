@@ -1,4 +1,5 @@
 import puppeteer, { Browser, BrowserContext } from 'puppeteer'
+import { browserLaunches, browserRetirements, RetireReason } from '~/controller/metrics'
 import timestamp from '~/util/timestamp'
 
 /**
@@ -87,7 +88,11 @@ let current: SharedBrowser | null = null
 let idleTimer: NodeJS.Timeout | undefined
 
 // stop handing out this browser, close it once its last capture is done
-const retire = (shared: SharedBrowser): void => {
+const retire = (shared: SharedBrowser, reason: RetireReason): void => {
+  if (!shared.retired) {
+    // counted once: closing it fires 'disconnected', and its last release retires it again
+    browserRetirements.inc({ reason })
+  }
   // eslint-disable-next-line no-param-reassign
   shared.retired = true
   if (current === shared) {
@@ -105,8 +110,14 @@ const start = (): SharedBrowser => {
     browser: launch(), active: 0, captures: 0, retired: false, closed: false,
   }
   shared.browser.then(
-    (browser) => browser.on('disconnected', () => retire(shared)),
-    () => retire(shared),
+    (browser) => {
+      browserLaunches.inc({ result: 'ok' })
+      browser.on('disconnected', () => retire(shared, 'disconnect'))
+    },
+    () => {
+      browserLaunches.inc({ result: 'failed' })
+      retire(shared, 'launch_failure')
+    },
   )
   return shared
 }
@@ -116,9 +127,9 @@ const release = (shared: SharedBrowser, failed: boolean): void => {
   shared.active -= 1
   // a failed capture may have left the browser in a bad state, so the retry gets a fresh one
   if (failed || shared.retired) {
-    retire(shared)
+    retire(shared, 'failure')
   } else if (shared.active === 0) {
-    idleTimer = setTimeout(() => retire(shared), idleTimeout)
+    idleTimer = setTimeout(() => retire(shared, 'idle'), idleTimeout)
     idleTimer.unref()
   }
 }
@@ -131,7 +142,7 @@ export interface Lease {
 export const acquireContext = async (): Promise<Lease> => {
   clearTimeout(idleTimer)
   if (current && current.captures >= maxCaptures) {
-    retire(current)
+    retire(current, 'max_captures')
   }
   if (!current) {
     current = start()

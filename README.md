@@ -274,7 +274,25 @@ is provided `about:blank` will be printed.
 
 - <a name="metrics">`GET /metrics`</a>
   
-  Exports [prometheus](https://prometheus.io/) metrics.
+  Exports [prometheus](https://prometheus.io/) metrics in the text format: node's default process
+  metrics (`process_*`, `nodejs_*`) and these:
+
+  | Metric | Type | Labels | Meaning |
+  | --- | --- | --- | --- |
+  | `pdf_counter` | counter | `method` (`get`, `post`) | PDFs sent |
+  | `screenshot_counter` | counter | `method` (`get`, `post`) | screenshots sent |
+  | `capture_duration_seconds` | histogram | `type` (`pdf`, `screenshot`), `outcome` | time from a `/pdf` or `/screenshot` request to its answer, including the wait for a slot and the retry |
+  | `captures_in_progress` | gauge | | captures holding a slot (`MAX_CONCURRENT_CAPTURES`); `/selfcheck` takes none |
+  | `captures_queued` | gauge | | captures waiting for a slot (`MAX_QUEUED_CAPTURES`) |
+  | `browser_launches_total` | counter | `result` (`ok`, `failed`) | launches of the shared Chromium |
+  | `browser_retirements_total` | counter | `reason` | shared browsers taken out of service |
+
+  `outcome` is `ok` (sent), `target_error` (`400`, `502`, `504`: the page failed), `service_error`
+  (`500` after the retry, the process then exits) or `rejected` (`503`, queue full, or the client hung
+  up while queued); see [Errors](#errors). `reason` is `max_captures` (`BROWSER_MAX_CAPTURES` reached),
+  `idle` (`BROWSER_IDLE_TIMEOUT_MS`), `failure` (after a failed capture), `disconnect` (Chromium
+  crashed or lost its connection) or `launch_failure`. Values are per node process and start from zero
+  when it restarts.
 
 - <a name="health">`GET /health`</a>
 
