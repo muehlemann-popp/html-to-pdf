@@ -29,9 +29,12 @@ point it at one with `PUPPETEER_EXECUTABLE_PATH`, or run tests in the `test` ima
 - **Dependencies must be at least 14 days old.** `.yarnrc.yml` enforces it (`npmMinimalAgeGate`);
   never lower or bypass it, and do not pin a version younger than that.
 - **Chromium comes from Alpine, not from puppeteer**: the `chromium-headless-shell` package
-  ([ADR 0001](docs/adr/0001-chromium-headless-shell.md)). The `node:*-alpine3.XX` tag in
+  ([ADR 0001](docs/adr/0001-chromium-headless-shell.md)). The `alpine:3.XX` tag in
   `deploy/Dockerfile` decides the Chromium major; keep `puppeteer` in `package.json` on the release
-  that targets the same major (its `PUPPETEER_REVISIONS`).
+  that targets the same major (its `PUPPETEER_REVISIONS`). The `node:*-alpine3.XX` tag must name the
+  same Alpine release: only its node binary is copied into `base`.
+- The prod image has no npm, npx, corepack or yarn: `base` starts from `alpine`, and only the `yarn`,
+  `builder`, `dev` and `test` stages get corepack. Do not add them back to `base`.
 - The `builder` stage of `deploy/Dockerfile` runs on the build machine's platform (`$BUILDPLATFORM`)
   and its `build/main.prod.js` goes into the images of every platform, so the bundle must stay
   platform-independent JavaScript (no native addons). Dependencies are installed before the source
