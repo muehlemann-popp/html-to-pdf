@@ -1,5 +1,6 @@
 // first: Sentry is initialised before the app and its dependencies are loaded
 import '~/instrument'
+import { AddressInfo } from 'net'
 import app from '~/app'
 import { closeBrowser } from '~/controller/browser'
 import { intFromEnv } from '~/util/env'
@@ -17,8 +18,10 @@ const server = app.listen(PORT, (error) => {
   if (error) {
     throw error
   }
+  // the port it got, not PORT: with PORT=0 the system picks a free one
+  const { port } = server.address() as AddressInfo
   // eslint-disable-next-line no-console
-  console.info(`[${timestamp()}] server started at http://localhost:${PORT}`)
+  console.info(`[${timestamp()}] server started at http://localhost:${port}`)
 })
 
 const shutdown = gracefulShutdown(server, {
