@@ -33,6 +33,16 @@ run the container out of memory. The memory figures this is sized on come from
   lower). A `timeout` that is not a non-negative number (a string, a negative number) is a `400`,
   checked before a browser context is acquired; before, a string turned the shared deadline into a
   string concatenation.
+- **A capture can take up to twice `timeout`.** Loading (navigation, `waitUntil`, `waitForSelector`)
+  shares the first budget; fonts and printing or capturing get a second one of the same size, so
+  loading that used all of the first does not leave the print 1 ms. puppeteer limits `page.pdf` to
+  30 s on its own, not to the navigation timeout, lets `pdfOptions.timeout: 0` lift even that, and
+  has no limit for a screenshot or for evaluating in the page except its 180 s protocol timeout, so
+  `capture()` passes the second budget to `page.pdf` (overriding the caller's `pdfOptions.timeout`)
+  and races the screenshot and `document.fonts.ready` against it. That bounds a request to
+  `2 × MAX_TIMEOUT_MS`. A timeout there is not a `TargetError` at first, since a hung browser looks
+  the same: it takes the retry on a fresh browser, and only a second one becomes a `504`
+  (`toRetriedTargetError`).
 - Invalid values of the three variables (not an integer, below their minimum of 1, 0 and 1) fall
   back to the default, like `BROWSER_MAX_CAPTURES`.
 

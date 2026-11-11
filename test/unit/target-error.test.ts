@@ -58,6 +58,11 @@ describe('toRetriedTargetError', () => {
     expect(statusOf(toRetriedTargetError(new Error('net::ERR_FAILED at https://example.com/')))).toBe(502)
   })
 
+  it('maps a timeout that a fresh browser reproduced to 504', () => {
+    expect(statusOf(toRetriedTargetError(new TimeoutError('page.pdf timed out after 1000ms')))).toBe(504)
+    expect(statusOf(toRetriedTargetError(new TimeoutError('Timed out after waiting 30000ms')))).toBe(504)
+  })
+
   it('leaves other failures alone', () => {
     const crash = new Error('Protocol error (Page.printToPDF): Target closed')
     expect(toRetriedTargetError(crash)).toBe(crash)

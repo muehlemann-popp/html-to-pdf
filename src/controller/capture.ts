@@ -4,6 +4,7 @@ import puppeteer, {
   PDFOptions,
   PuppeteerLifeCycleEvent,
   SetContentWaitForOptions,
+  TimeoutError,
   Viewport,
 } from 'puppeteer'
 
@@ -65,6 +66,23 @@ export const logException = async <T> (when: string, process: () => Promise<T>):
     console.error(`[${timestamp()}] Exception at ${when}: "${err.message}"`)
     // catching errors to sentry is done at higher level, exception stack logging as well
     throw err
+  }
+}
+
+// puppeteer has no timeout for a screenshot or for evaluating in the page (only its 180 s protocol
+// timeout), so these are raced against one; the work left behind dies with the browser, which a
+// failed capture replaces
+const within = async <T> (ms: number, what: string, work: () => Promise<T>): Promise<T> => {
+  let timer: NodeJS.Timeout | undefined
+  try {
+    return await Promise.race([
+      work(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new TimeoutError(`${what} timed out after ${ms}ms`)), ms)
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -159,9 +177,19 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
         timeout: remaining(),
       }))
     }
+    // fonts and the capture itself get a budget of their own, `timeout` again: loading may have used up
+    // the first. Without it puppeteer limits page.pdf to its default of 30 s (which `pdfOptions.timeout: 0`
+    // lifts altogether) and does not limit a screenshot at all
+    const captureDeadline = Date.now() + timeout
+    const captureRemaining = () => Math.max(captureDeadline - Date.now(), 1)
+
     await logException(
       'page.evaluateHandle',
-      () => page.evaluateHandle('document.fonts.ready'),
+      () => within(
+        captureRemaining(),
+        'document.fonts.ready',
+        () => page.evaluateHandle('document.fonts.ready'),
+      ),
     )
 
     let buffer: Uint8Array
@@ -178,7 +206,11 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       }
       buffer = await logException(
         'page.screenshot',
-        () => page.screenshot({ ...screenshotOptions || {}, encoding: 'binary' }),
+        () => within(
+          captureRemaining(),
+          'page.screenshot',
+          () => page.screenshot({ ...screenshotOptions || {}, encoding: 'binary' }),
+        ),
       )
     } else {
       // never save files to disk locally
@@ -187,7 +219,8 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       }
       buffer = await logException(
         'page.pdf',
-        () => page.pdf({ ...defaultPDFOptions, ...pdfOptions || {} }),
+        // the caller's pdfOptions.timeout is replaced: it must not lift the limit
+        () => page.pdf({ ...defaultPDFOptions, ...pdfOptions || {}, timeout: captureRemaining() }),
       )
     }
     await logException('page.close', () => page.close())

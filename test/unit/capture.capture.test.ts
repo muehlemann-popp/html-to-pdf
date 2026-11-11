@@ -1,7 +1,7 @@
 import {
   afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest'
-import puppeteer from 'puppeteer'
+import puppeteer, { TimeoutError } from 'puppeteer'
 import { closeBrowser } from '~/controller/browser'
 import capture, { defaultViewportOptions } from '~/controller/capture'
 import { CaptureType } from '~/interface'
@@ -240,8 +240,47 @@ describe('capture', () => {
       },
       preferCSSPageSize: true,
       printBackground: true,
+      timeout: expect.any(Number),
     })
     expect(pageProto.screenshot).not.toHaveBeenCalled()
+  })
+
+  // puppeteer limits page.pdf to 30 s by default, and `pdfOptions.timeout: 0` lifts even that
+  it('gives page.pdf the request timeout, whatever pdfOptions.timeout says', async () => {
+    await capture(CaptureType.PDF, { timeout: 5000, pdfOptions: { timeout: 0 } })
+    const { timeout } = pageProto.pdf.mock.calls[0][0]
+    expect(timeout).toBeGreaterThan(4000)
+    expect(timeout).toBeLessThanOrEqual(5000)
+    await capture(CaptureType.PDF, { timeout: 5000, pdfOptions: { timeout: 600000 } })
+    expect(pageProto.pdf.mock.calls[1][0].timeout).toBeLessThanOrEqual(5000)
+  })
+
+  it('gives printing a budget of its own, not what loading left of the timeout', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(0)
+      pageProto.goto.mockImplementationOnce(async () => { vi.setSystemTime(990) })
+      pageProto.evaluateHandle.mockImplementationOnce(async () => { vi.setSystemTime(1000) })
+      await capture(CaptureType.PDF, { url: 'https://example.com', timeout: 1000 })
+      // 1 ms would have been left of the first budget
+      expect(pageProto.pdf.mock.calls[0][0].timeout).toBeGreaterThan(900)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // not a TargetError: a hung browser looks the same, so it is retried on a fresh one first
+  it.each([
+    ['a screenshot', CaptureType.Screenshot, 'screenshot'],
+    ['evaluating in the page', CaptureType.PDF, 'evaluateHandle'],
+  ] as const)('stops waiting for %s after the timeout and replaces the browser', async (_, type, method) => {
+    pageProto[method].mockImplementationOnce(() => new Promise(() => undefined))
+    const error = await capture(type, { timeout: 50 }).catch((e) => e)
+    expect(error).toBeInstanceOf(TimeoutError)
+    expect(error).not.toBeInstanceOf(TargetError)
+    expect(error.message).toMatch(/timed out after \d+ms/)
+    expect(contextProto.close).toHaveBeenCalled()
+    expect(browserProto.close).toHaveBeenCalled()
   })
 
   it('uses defaults as expected', async () => {
