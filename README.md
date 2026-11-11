@@ -306,7 +306,12 @@ is provided `about:blank` will be printed.
 
 - <a name="version">`GET /version`</a>
 
-  Returns the `RELEASE_ID`, `CI_BUILD_DATE` and `ENV` environment variables of the container.
+  Returns the `RELEASE_ID`, `CI_BUILD_DATE` and `ENV` environment variables of the container. The
+  published images set `RELEASE_ID` to their tag (`1.2.3`, or `git-<sha>` for a build of `main`) and
+  `CI_BUILD_DATE` to the time of the build; `ENV` is yours to set. An image built without the build
+  args (`docker build --build-arg RELEASE_ID=… --build-arg CI_BUILD_DATE=…`) answers empty strings
+  until you set the variables when running it, which always wins over the image's.
+  `RELEASE_ID` is also the Sentry release.
 
 - <a name="root">`GET /`</a>
   
