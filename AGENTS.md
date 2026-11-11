@@ -51,7 +51,11 @@ point it at one with `PUPPETEER_EXECUTABLE_PATH`, or run tests in the `test` ima
   the process exits and `deploy/docker-entrypoint.sh` restarts it). Net errors that are not clearly
   the site's (`ERR_ABORTED`, `ERR_FAILED`, …) take the retry and become a 502 only if the fresh
   browser fails the same way (`toRetriedTargetError`). Keep that split when adding
-  error handling; the acceptance tests fail if a caller error makes the process exit.
+  error handling; the acceptance tests fail if a caller error makes the process exit. The request
+  body goes to puppeteer almost as it is and puppeteer throws plain `Error`s on options it cannot
+  use, so every option it throws on is checked in `src/util/validate-params.ts` (400, before a
+  browser is used); what only Chromium rejects is mapped by `toOptionsError`. A new option that is
+  passed through gets a check there and a case in the acceptance tests.
 - SIGTERM/SIGINT stop the service gracefully (`src/util/graceful-shutdown.ts`, README "Stopping and
   restarts"): `deploy/docker-entrypoint.sh` forwards them to node and does not restart it afterwards.
   Keep puppeteer's own signal handling off (`handleSIGTERM`/`handleSIGINT: false`), or it kills
