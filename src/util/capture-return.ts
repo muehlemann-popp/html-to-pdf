@@ -78,8 +78,7 @@ const captureAndReturn = async (
       return false
     }
     observe('service_error')
-    // eslint-disable-next-line no-console
-    console.error(e)
+    // processRequestError has logged it already, with the URLs of its message and stack redacted
     registerUnrecoverableError()
     // it failed twice, we better exit now and restart node process
     // eslint-disable-next-line no-console

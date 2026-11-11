@@ -75,6 +75,18 @@ describe('capture metrics', () => {
     expect(exit).toHaveBeenCalledWith(1)
   })
 
+  it('logs a service failure once, with the URLs of its message and stack redacted', async () => {
+    vi.mocked(capture).mockRejectedValue(new Error('Protocol error at https://u:pw@example.com/a?token=abc123'))
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+    await request(app).post('/pdf').expect(500)
+    // eslint-disable-next-line no-console
+    const logged = vi.mocked(console.error).mock.calls.map((call) => call.map(String).join(' '))
+    // processRequestError's line for the failed retry, not the raw error after it
+    expect(logged).toHaveLength(1)
+    expect(logged[0]).toContain('https://example.com/a?…')
+    expect(logged[0]).not.toMatch(/abc123|u:pw/)
+  })
+
   it('observes a capture turned away by a full queue as rejected', async () => {
     vi.spyOn(captureSlots, 'run').mockRejectedValueOnce(new CaptureRejectedError('too many captures'))
     const before = await observed('pdf', 'rejected')
