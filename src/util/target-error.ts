@@ -75,6 +75,31 @@ export const toTargetError = (e: unknown): unknown => {
   return e
 }
 
+// Chromium refusing a caller's option over the DevTools protocol, e.g. "Protocol error
+// (Page.printToPDF): Invalid parameters Failed to deserialize params.scale - …", "… paper width is zero or
+// negative", "… Page range syntax error" or "Protocol error (Emulation.setDeviceMetricsOverride): Width and
+// height values must be positive, not greater than …". Listed by message, not "any protocol error", so a
+// failing browser ("Target closed", …) is still a service failure.
+const invalidOptions = new RegExp(`^Protocol error \\([\\w.]+\\): (${[
+  'Invalid parameters',
+  'Width and height values must be',
+  'paper (width|height) is',
+  'invalid print parameters',
+  'scale is outside',
+  'Page range ',
+].join('|')})`)
+
+/**
+ Converts the error of a call that applies the caller's viewport, PDF or screenshot options when Chromium
+ rejects them (what ~/util/validate-params cannot know), anything else is returned unchanged. Used only
+ around those calls: a rejected parameter there is the caller's, while the same message elsewhere would
+ be a bug of the service.
+*/
+export const toOptionsError = (e: unknown): unknown => {
+  const message = (e as Error)?.message ?? ''
+  return invalidOptions.test(message) ? new TargetError(message, 400) : e
+}
+
 /**
  Converts a navigation error that a fresh browser reproduced: the browser was replaced after the
  first attempt, so the page is the cause (e.g. ERR_ABORTED for a download or an ftp:// URL).

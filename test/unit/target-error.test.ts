@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { TimeoutError } from 'puppeteer'
-import { TargetError, toRetriedTargetError, toTargetError } from '~/util/target-error'
+import {
+  TargetError, toOptionsError, toRetriedTargetError, toTargetError,
+} from '~/util/target-error'
 
 // messages as Puppeteer 25 / Chromium 155 report them
 const statusOf = (e: unknown) => (e instanceof TargetError ? e.status : null)
@@ -49,6 +51,36 @@ describe('toTargetError', () => {
   ])('leaves "%s" to the retry', (message) => {
     const e = new Error(message)
     expect(toTargetError(e)).toBe(e)
+  })
+})
+
+describe('toOptionsError', () => {
+  // what Chromium answers for options that validateParams cannot judge
+  it.each([
+    'Protocol error (Page.printToPDF): Invalid parameters Failed to deserialize params.landscape - BINDINGS: boolean value expected at position 40',
+    'Protocol error (Page.captureScreenshot): Invalid parameters Failed to deserialize params.fromSurface - BINDINGS: boolean value expected',
+    'Protocol error (Page.printToPDF): paper width is zero or negative',
+    'Protocol error (Page.printToPDF): paper height is zero or negative',
+    'Protocol error (Page.printToPDF): invalid print parameters: content area is empty',
+    'Protocol error (Page.printToPDF): Page range syntax error',
+    'Protocol error (Page.printToPDF): Page range is invalid (start > end)',
+    'Protocol error (Page.printToPDF): Page range exceeds page count',
+    'Protocol error (Page.printToPDF): scale is outside of [0.1 - 2] range',
+    'Protocol error (Emulation.setDeviceMetricsOverride): Width and height values must be positive, not greater than 10000000',
+  ])('maps "%s" to 400', (message) => {
+    const e = toOptionsError(new Error(message))
+    expect(statusOf(e)).toBe(400)
+    expect((e as Error).message).toBe(message)
+  })
+
+  it('leaves service failures alone', () => {
+    [
+      new Error('Protocol error (Page.printToPDF): Target closed'),
+      new Error('Protocol error (Page.captureScreenshot): Session closed. Most likely the page has been closed.'),
+      new Error('Navigating frame was detached'),
+      new Error('Invalid parameters'),
+      new TimeoutError('Timed out after waiting 30000ms'),
+    ].forEach((e) => expect(toOptionsError(e)).toBe(e))
   })
 })
 

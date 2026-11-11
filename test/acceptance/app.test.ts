@@ -162,12 +162,37 @@ describe('Basic routing', () => {
       ['an unknown puppeteer selector', () => ({ waitForSelector: '::-p-madeup' }), 400, /Unknown selector type/],
       ['an empty selector', () => ({ waitForSelector: '' }), 400, /non-empty string/],
       ['a selector that is not a string', () => ({ waitForSelector: ['#pdf-ready'] }), 400, /non-empty string/],
+      // puppeteer throws a plain Error on these, which used to take the retry and make the process exit
+      ['html that is not a string', () => ({ html: 123 }), 400, /html must be a string/],
+      ['waitUntil that is not a list', () => ({ html: '<p>x</p>', waitUntil: 'load' }), 400, /waitUntil/],
+      ['an unknown paper format', () => ({ html: '<p>x</p>', pdfOptions: { format: 'bogus' } }), 400, /pdfOptions.format/],
+      ['a negative viewport', () => ({ html: '<p>x</p>', viewport: { width: -5, height: 10 } }), 400, /viewport.width/],
+      // only Chromium knows these are unusable
+      ['a paper width of 0', () => ({ html: '<p>x</p>', pdfOptions: { width: 0 } }), 400, /paper width/],
+      ['a margin that leaves no content', () => ({ html: '<p>x</p>', pdfOptions: { margin: { top: '99999in' } } }), 400, /content area is empty/],
+      ['a page range that does not exist', () => ({ html: '<p>x</p>', pdfOptions: { pageRanges: '9' } }), 400, /Page range/],
+      ['a boolean option of the wrong type', () => ({ html: '<p>x</p>', pdfOptions: { landscape: 'yes' } }), 400, /Invalid parameters/],
     ])('answers %s with its status', async (_, body, status, message) => {
       await request(app).post('/pdf').send(body())
         .expect('Content-Type', /application\/json/)
         .expect(status)
         .expect((res) => {
           expect(res.body.status).toBe('error')
+          expect(res.body.message).toMatch(message)
+        })
+    })
+
+    it.each([
+      ['an unknown image type', { type: 'gif' }, /screenshotOptions.type/],
+      ['a quality for png', { quality: 50 }, /quality needs/],
+      ['clip together with fullPage', { clip: { x: 0, y: 0, width: 5, height: 5 }, fullPage: true }, /mutually exclusive/],
+      ['an unknown media type', { emulateMediaType: 'foo' }, /emulateMediaType/],
+      ['a number where Chromium wants a boolean', { fromSurface: 5 }, /Invalid parameters/],
+    ])('answers a screenshot with %s with a 400', async (_, screenshotOptions, message) => {
+      await request(app).post('/screenshot').send({ html: '<p>x</p>', screenshotOptions })
+        .expect('Content-Type', /application\/json/)
+        .expect(400)
+        .expect((res) => {
           expect(res.body.message).toMatch(message)
         })
     })
