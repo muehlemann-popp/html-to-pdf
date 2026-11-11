@@ -95,6 +95,29 @@ describe('Basic routing', () => {
       .expect(200)
   })
 
+  // the Content-Type and the file name follow screenshotOptions.type, webp was sent as image/png
+  it.each([
+    [undefined, 'image/png', 'png', 'PNG'],
+    ['png', 'image/png', 'png', 'PNG'],
+    ['jpeg', 'image/jpeg', 'jpg', 'JFIF'],
+    ['webp', 'image/webp', 'webp', 'WEBP'],
+  ])('should answer a POST /screenshot of type %s as %s', async (type, mime, extension, magic) => {
+    const res = await request(app)
+      .post('/screenshot')
+      .send({ html: '<p>x</p>', screenshotOptions: { type } })
+      .expect('Content-Type', mime)
+      .expect('Content-Disposition', new RegExp(`filename="?screenshot\\.${extension}"?`))
+      .expect(200)
+      .buffer()
+      .parse((r, callback) => {
+        const chunks: Buffer[] = []
+        r.on('data', (chunk: Buffer) => chunks.push(chunk))
+        r.on('end', () => callback(null, Buffer.concat(chunks)))
+      })
+    // the bytes are what the Content-Type says: PNG header, JFIF in a JPEG, RIFF…WEBP
+    expect((res.body as Buffer).toString('latin1', 0, 16)).toContain(magic)
+  })
+
   it('should print about:blank when GET /pdf without parameters', async () => {
     const content: string = await downloadPDF((req) => req.get('/pdf'))
     testBlankPDFContent(content)

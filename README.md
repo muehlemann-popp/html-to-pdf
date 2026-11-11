@@ -263,6 +263,8 @@ is provided `about:blank` will be printed.
     - `screenshotOptions: ScreenshotOptions`, optional.
       See [puppeteer docs for `ScreenshotOptions`](https://pptr.dev/api/puppeteer.screenshotoptions).
       Additionally supports emulating media type via `emulateMediaType: string` optional property.
+      `type` is `png` (default), `jpeg` or `webp`; the response's `Content-Type` and file extension
+      (`.png`, `.jpg`, `.webp`) follow it.
     
     - `viewport: Viewport`, optional, defaults to 1200×800.
       See [puppeteer docs for `Viewport`](https://pptr.dev/api/puppeteer.viewport)
