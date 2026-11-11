@@ -93,6 +93,14 @@ RUN echo '{ "type": "module" }' > package.json
 # Run Chrome as non-privileged
 USER chrome
 
+# what GET /version returns and Sentry takes as the release, set by the release workflow (docker-bake
+# build args). Last: a different value changes only the image's metadata, no layer is rebuilt
+ARG RELEASE_ID
+ARG CI_BUILD_DATE
+ENV \
+  RELEASE_ID=$RELEASE_ID \
+  CI_BUILD_DATE=$CI_BUILD_DATE
+
 
 # `base` plus yarn, for the stages that install the dependencies
 FROM base AS yarn
