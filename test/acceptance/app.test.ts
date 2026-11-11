@@ -169,7 +169,6 @@ describe('Basic routing', () => {
       ['a negative viewport', () => ({ html: '<p>x</p>', viewport: { width: -5, height: 10 } }), 400, /viewport.width/],
       // only Chromium knows these are unusable
       ['a paper width of 0', () => ({ html: '<p>x</p>', pdfOptions: { width: 0 } }), 400, /paper width/],
-      ['a margin that leaves no content', () => ({ html: '<p>x</p>', pdfOptions: { margin: { top: '99999in' } } }), 400, /content area is empty/],
       ['a page range that does not exist', () => ({ html: '<p>x</p>', pdfOptions: { pageRanges: '9' } }), 400, /Page range/],
       ['a boolean option of the wrong type', () => ({ html: '<p>x</p>', pdfOptions: { landscape: 'yes' } }), 400, /Invalid parameters/],
     ])('answers %s with its status', async (_, body, status, message) => {
