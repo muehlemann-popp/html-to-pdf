@@ -1,11 +1,11 @@
 import {
   afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest'
-import puppeteer from 'puppeteer'
+import puppeteer, { TimeoutError } from 'puppeteer'
 import { closeBrowser } from '~/controller/browser'
 import capture, { defaultViewportOptions } from '~/controller/capture'
 import { CaptureType } from '~/interface'
-import { TargetError } from '~/util/target-error'
+import { CaptureTimeoutError, TargetError } from '~/util/target-error'
 
 // vi.mock is hoisted above the imports, so everything its factory uses has to be hoisted too
 const { pageProto, contextProto, browserProto } = vi.hoisted(() => {
@@ -240,8 +240,62 @@ describe('capture', () => {
       },
       preferCSSPageSize: true,
       printBackground: true,
+      timeout: expect.any(Number),
     })
     expect(pageProto.screenshot).not.toHaveBeenCalled()
+  })
+
+  // puppeteer limits page.pdf to 30 s by default, and `pdfOptions.timeout: 0` lifts even that
+  it('gives page.pdf the request timeout, whatever pdfOptions.timeout says', async () => {
+    await capture(CaptureType.PDF, { timeout: 5000, pdfOptions: { timeout: 0 } })
+    const { timeout } = pageProto.pdf.mock.calls[0][0]
+    expect(timeout).toBeGreaterThan(4000)
+    expect(timeout).toBeLessThanOrEqual(5000)
+    await capture(CaptureType.PDF, { timeout: 5000, pdfOptions: { timeout: 600000 } })
+    expect(pageProto.pdf.mock.calls[1][0].timeout).toBeLessThanOrEqual(5000)
+  })
+
+  it('gives printing a budget of its own, not what loading left of the timeout', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(0)
+      pageProto.goto.mockImplementationOnce(async () => { vi.setSystemTime(990) })
+      pageProto.evaluateHandle.mockImplementationOnce(async () => { vi.setSystemTime(1000) })
+      await capture(CaptureType.PDF, { url: 'https://example.com', timeout: 1000 })
+      // 1 ms would have been left of the first budget
+      expect(pageProto.pdf.mock.calls[0][0].timeout).toBeGreaterThan(900)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // not a TargetError: a hung browser looks the same, so it is retried on a fresh one first
+  it.each([
+    ['a screenshot', CaptureType.Screenshot, 'screenshot'],
+    ['evaluating in the page', CaptureType.PDF, 'evaluateHandle'],
+  ] as const)('stops waiting for %s after the timeout and replaces the browser', async (_, type, method) => {
+    pageProto[method].mockImplementationOnce(() => new Promise(() => undefined))
+    const error = await capture(type, { timeout: 50 }).catch((e) => e)
+    expect(error).toBeInstanceOf(CaptureTimeoutError)
+    expect(error).not.toBeInstanceOf(TargetError)
+    expect(error.message).toMatch(/timed out after \d+ms/)
+    expect(contextProto.close).toHaveBeenCalled()
+    expect(browserProto.close).toHaveBeenCalled()
+  })
+
+  // puppeteer's own pdf timeout ("Timed out after waiting …ms") is told apart from a launch timeout too
+  it('reports page.pdf running into its timeout as a CaptureTimeoutError', async () => {
+    pageProto.pdf.mockRejectedValueOnce(new TimeoutError('Timed out after waiting 50ms'))
+    const error = await capture(CaptureType.PDF, { timeout: 50 }).catch((e) => e)
+    expect(error).toBeInstanceOf(CaptureTimeoutError)
+    expect(error.message).toMatch(/^page\.pdf timed out after \d+ms$/)
+    expect(browserProto.close).toHaveBeenCalled()
+  })
+
+  it('stops waiting for a PDF stream that never ends after the timeout', async () => {
+    pageProto.pdf.mockImplementationOnce(() => new Promise(() => undefined))
+    const error = await capture(CaptureType.PDF, { timeout: 50 }).catch((e) => e)
+    expect(error).toBeInstanceOf(CaptureTimeoutError)
   })
 
   it('uses defaults as expected', async () => {

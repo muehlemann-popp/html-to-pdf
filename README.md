@@ -231,7 +231,10 @@ is provided `about:blank` will be printed.
   
   - `timeout: number`, optional, milliseconds, defaults to 60000. At most `MAX_TIMEOUT_MS` (default
     120000): a larger value is lowered to it. Anything but a non-negative number is answered with `400`.
-    Time spent waiting for a free slot (see `MAX_QUEUED_CAPTURES`) does not count.
+    Time spent waiting for a free slot (see `MAX_QUEUED_CAPTURES`) does not count. Loading the page
+    has this long, and then waiting for its fonts and printing or capturing it has the same again. A
+    print or capture that runs out of time is retried once on a fresh browser, which loads the page
+    again, so a request can take up to four times `timeout`. `pdfOptions.timeout` is ignored.
     See [puppeteer docs for `page.setDefaultNavigationTimeout()`](https://pptr.dev/api/puppeteer.page.setdefaultnavigationtimeout)
 
   Simplest payload can be similar to:
@@ -324,6 +327,7 @@ status that says whose problem it is:
 | `502` | The requested site failed: DNS, refused connection, TLS, certificate, redirects, broken response (`net::ERR_NAME_NOT_RESOLVED`, `net::ERR_CONNECTION_REFUSED`, `net::ERR_CERT_…`, …) | keeps running |
 | `502` | Any other `net::ERR_…` (`net::ERR_ABORTED`, `net::ERR_FAILED`, e.g. a URL that downloads a file) that a fresh browser reproduced | retried once on a fresh browser, since a failing browser reports these too; keeps running |
 | `504` | The page did not finish loading within `timeout`, including `networkidle0`/`networkidle2` and `waitForSelector` (`Waiting for selector … failed`) | keeps running |
+| `504` | Printing or capturing the loaded page took longer than `timeout` again (`page.pdf timed out after …`), on a fresh browser as well | retried once on a fresh browser, since a hung browser looks the same; keeps running |
 | `500` | The service failed to render (e.g. Chromium crashed) | retried once on a fresh browser; if the retry fails too, the process exits and the container entrypoint restarts it |
 | `503` | Too busy: `MAX_CONCURRENT_CAPTURES` captures are rendering and `MAX_QUEUED_CAPTURES` are waiting (`too many captures: …`); answered at once with `Retry-After: 1` | keeps running |
 

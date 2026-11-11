@@ -15,6 +15,20 @@ export class TargetError extends Error {
   }
 }
 
+/**
+ Waiting for the fonts, printing or capturing a page that has loaded took longer than `timeout`
+ (~/controller/capture). Not a `TargetError` the first time: a hung browser looks the same, so it takes
+ the retry on a fresh browser, and only when that times out as well does it become a 504
+ (`toRetriedTargetError`). A puppeteer `TimeoutError` from anywhere else, e.g. Chromium not starting
+ within puppeteer's launch timeout, stays a service failure, so the process still exits and is restarted.
+*/
+export class CaptureTimeoutError extends TimeoutError {
+  constructor(message: string) {
+    super(message)
+    this.name = 'CaptureTimeoutError'
+  }
+}
+
 // a URL Chromium refuses to load at all
 const invalidUrl = new RegExp([
   'Cannot navigate to invalid URL',
@@ -76,10 +90,16 @@ export const toTargetError = (e: unknown): unknown => {
 }
 
 /**
- Converts a navigation error that a fresh browser reproduced: the browser was replaced after the
- first attempt, so the page is the cause (e.g. ERR_ABORTED for a download or an ftp:// URL).
+ Converts an error that a fresh browser reproduced: the browser was replaced after the first attempt,
+ so the page is the cause (e.g. ERR_ABORTED for a download or an ftp:// URL, or a page that takes
+ longer than `timeout` to print).
 */
 export const toRetriedTargetError = (e: unknown): unknown => {
+  // printing or capturing took longer than `timeout` on a fresh browser as well: the page is too heavy.
+  // Only CaptureTimeoutError: a launch that timed out twice is the service's, not the page's
+  if (e instanceof CaptureTimeoutError) {
+    return new TargetError(e.message, 504)
+  }
   const message = (e as Error)?.message ?? ''
   if (!(e instanceof TargetError) && /net::ERR_[A-Z_]+/.test(message)) {
     return new TargetError(message, 502)

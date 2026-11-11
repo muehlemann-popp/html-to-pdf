@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { TimeoutError } from 'puppeteer'
-import { TargetError, toRetriedTargetError, toTargetError } from '~/util/target-error'
+import {
+  CaptureTimeoutError, TargetError, toRetriedTargetError, toTargetError,
+} from '~/util/target-error'
 
 // messages as Puppeteer 25 / Chromium 155 report them
 const statusOf = (e: unknown) => (e instanceof TargetError ? e.status : null)
@@ -56,6 +58,16 @@ describe('toRetriedTargetError', () => {
   it('maps a net error that a fresh browser reproduced to 502', () => {
     expect(statusOf(toRetriedTargetError(new Error('net::ERR_ABORTED at ftp://example.com/x')))).toBe(502)
     expect(statusOf(toRetriedTargetError(new Error('net::ERR_FAILED at https://example.com/')))).toBe(502)
+  })
+
+  it('maps a print or capture timeout that a fresh browser reproduced to 504', () => {
+    expect(statusOf(toRetriedTargetError(new CaptureTimeoutError('page.pdf timed out after 1000ms')))).toBe(504)
+  })
+
+  // e.g. Chromium not starting twice: the process has to exit and be restarted, not answer 504 forever
+  it('leaves any other timeout a service failure', () => {
+    const launch = new TimeoutError('Timed out after 30000 ms while waiting for the WS endpoint URL to appear in stdout!')
+    expect(toRetriedTargetError(launch)).toBe(launch)
   })
 
   it('leaves other failures alone', () => {

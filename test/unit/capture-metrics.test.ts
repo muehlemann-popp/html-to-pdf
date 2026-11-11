@@ -1,6 +1,7 @@
 import {
   afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest'
+import { TimeoutError } from 'puppeteer'
 import request from 'supertest'
 import app from '~/app'
 import capture from '~/controller/capture'
@@ -8,7 +9,7 @@ import { CaptureRejectedError, captureSlots } from '~/controller/capture-slots'
 import {
   captureDuration, capturesInProgress, capturesQueued, pdfCounter,
 } from '~/controller/metrics'
-import { TargetError } from '~/util/target-error'
+import { CaptureTimeoutError, TargetError } from '~/util/target-error'
 
 vi.mock('~/controller/capture', () => ({
   default: vi.fn(),
@@ -48,6 +49,26 @@ describe('capture metrics', () => {
     const before = await observed('pdf', 'target_error')
     await request(app).post('/pdf').send({ url: 'http://does-not-exist.invalid' }).expect(502)
     expect(await observed('pdf', 'target_error')).toBe(before + 1)
+  })
+
+  it('answers a page that is too heavy to print twice in a row with 504, without exiting', async () => {
+    // a first timeout may be a hung browser, so it is retried on a fresh one; the second is the page's
+    vi.mocked(capture).mockRejectedValue(new CaptureTimeoutError('page.pdf timed out after 1000ms'))
+    const exit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+    const before = await observed('pdf', 'target_error')
+    await request(app).post('/pdf').expect(504)
+    expect(capture).toHaveBeenCalledTimes(2)
+    expect(await observed('pdf', 'target_error')).toBe(before + 1)
+    expect(exit).not.toHaveBeenCalled()
+  })
+
+  it('still exits when the browser does not start in time twice in a row', async () => {
+    vi.mocked(capture).mockRejectedValue(new TimeoutError('Timed out after 30000 ms while waiting for the WS endpoint URL'))
+    const exit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+    const before = await observed('pdf', 'service_error')
+    await request(app).post('/pdf').expect(500)
+    expect(await observed('pdf', 'service_error')).toBe(before + 1)
+    expect(exit).toHaveBeenCalledWith(1)
   })
 
   it('observes a capture that failed twice as service_error before exiting', async () => {
