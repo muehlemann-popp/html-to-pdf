@@ -1,6 +1,8 @@
 import { Request, Response, Router } from 'express'
 import { register } from 'prom-client'
-import { CaptureMime, CaptureParameters, CaptureType } from '~/interface'
+import {
+  CaptureMime, CaptureParameters, CaptureType, screenshotMime,
+} from '~/interface'
 import { pdfCounter, screenshotCounter } from '~/controller/metrics'
 import captureAndReturn from '~/util/capture-return'
 import capture, { defaultUrl } from '~/controller/capture'
@@ -78,7 +80,7 @@ router.post('/screenshot', async (req: Request, res: Response) => {
   const sent = await captureAndReturn(
     res,
     CaptureType.Screenshot,
-    bodyParams(req).screenshotOptions?.type === 'jpeg' ? CaptureMime.JPG : CaptureMime.PNG,
+    screenshotMime(bodyParams(req).screenshotOptions?.type),
     req.query?.filename as string || screenshotDefaultName,
     bodyParams(req),
   )

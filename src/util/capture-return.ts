@@ -12,6 +12,7 @@ const mimeToExtension: Record<CaptureMime, string> = {
   [CaptureMime.PDF]: 'pdf',
   [CaptureMime.JPG]: 'jpg',
   [CaptureMime.PNG]: 'png',
+  [CaptureMime.WEBP]: 'webp',
 }
 
 // resolves true once the capture was sent, false when the request was answered with an error
