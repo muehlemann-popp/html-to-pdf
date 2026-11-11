@@ -73,9 +73,9 @@ Optional environment variables:
 
 Each `/pdf` and `/screenshot` request logs one line with its parameters to stdout. To keep secrets and
 bulk out of the logs, `url` is logged without credentials, query string and fragment
-(`https://example.com/doc?…`), the same for URLs in Chromium's error messages, and `html` and every
-other long value are cut to their first characters and their length. The response itself is not
-changed.
+(`https://example.com/doc?…`), also when it cannot be parsed; the same for URLs in any other value
+(such as a header template) and in Chromium's error messages. `html` and every other long value are
+cut to their first characters and their length. The response itself is not changed.
 
 ### <a name="stopping">Stopping and restarts</a>
 

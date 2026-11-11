@@ -12,6 +12,12 @@ describe('redactUrl', () => {
     ['http://user@example.com/', 'http://example.com/'],
     ['about:blank', 'about:blank'],
     ['not a url', 'not a url'],
+    // new URL() rejects these, the secrets go all the same
+    ['https://user:pa ss@example.com/a?token=secret', 'https://example.com/a?…'],
+    ['https://u:p@[bad/a#token=secret', 'https://[bad/a#…'],
+    ['http://exa mple.com/?token=secret', 'http://exa mple.com/?…'],
+    // not http(s): parsed, but redacted by its text
+    ['ftp://user:pass@example.com/f?x=1', 'ftp://example.com/f?…'],
   ])('logs %s as %s', (url, expected) => {
     expect(redactUrl(url)).toBe(expected)
   })
@@ -52,6 +58,21 @@ describe('describeParams', () => {
     const logged = describeParams({ url: 'https://user:pw@example.com/doc?token=abc123#x', timeout: 5000 })
     expect(logged).toBe('{"url":"https://example.com/doc?…#…","timeout":5000}')
     expect(logged).not.toMatch(/abc123|pw/)
+  })
+
+  // GET /pdf?url=…&url=… makes url an array, whose elements are not under the key "url"
+  it('redacts the URLs of a repeated url parameter', () => {
+    const logged = describeParams({ url: ['https://u:pw@a.example/x?token=abc123', 'https://b.example/?sig=abc123'] })
+    expect(logged).toBe('{"url":["https://a.example/x?…","https://b.example/?…"]}')
+  })
+
+  it('redacts URLs inside other strings before cutting them', () => {
+    const headerTemplate = `<img src="https://u:pw@cdn.example/logo.png?sig=abc123">${'a'.repeat(200)}`
+    const logged = describeParams({ pdfOptions: { headerTemplate } })
+    expect(logged).not.toMatch(/abc123|pw@/)
+    expect(logged).toContain('https://cdn.example/logo.png?…')
+    // the length is that of the template as sent, not of the redacted one
+    expect(logged).toContain(`… [${headerTemplate.length}]`)
   })
 
   it('keeps everything else as it is', () => {
