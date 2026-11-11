@@ -6,7 +6,9 @@ import { intFromEnv } from '~/util/env'
 import { gracefulShutdown } from '~/util/graceful-shutdown'
 import timestamp from '~/util/timestamp'
 
-const { PORT = 4000 } = process.env
+// an integer from 0 (a free port) to 65535; unset, empty or anything else listens on 4000
+const portFromEnv = intFromEnv('PORT', 4000, 0)
+const PORT = portFromEnv <= 65535 ? portFromEnv : 4000
 
 process.setMaxListeners(100)
 
