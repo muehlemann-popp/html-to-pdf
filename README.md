@@ -321,13 +321,16 @@ status that says whose problem it is:
 | --- | --- | --- |
 | `400` | The URL cannot be loaded at all: not a string, malformed, a scheme other than `http`/`https` (`invalid URL: …`, `URL scheme file: is not allowed, …`; checked before the browser is used), or a blocked port (`net::ERR_UNSAFE_PORT`, …) | keeps running |
 | `400` | `waitForSelector` is not a non-empty string, or not a valid selector (`SyntaxError: … is not a valid selector`, `Unknown selector type: …`); checked before the page is loaded | keeps running |
+| `400` | The body is not valid JSON | keeps running |
+| `413` | The body is larger than 30 MB | keeps running |
+| `415` | A body was sent with a `Content-Type` other than JSON (`text/plain`, a form, none): it would otherwise be ignored and a blank page printed. Send `Content-Type: application/json` | keeps running |
 | `502` | The requested site failed: DNS, refused connection, TLS, certificate, redirects, broken response (`net::ERR_NAME_NOT_RESOLVED`, `net::ERR_CONNECTION_REFUSED`, `net::ERR_CERT_…`, …) | keeps running |
 | `502` | Any other `net::ERR_…` (`net::ERR_ABORTED`, `net::ERR_FAILED`, e.g. a URL that downloads a file) that a fresh browser reproduced | retried once on a fresh browser, since a failing browser reports these too; keeps running |
 | `504` | The page did not finish loading within `timeout`, including `networkidle0`/`networkidle2` and `waitForSelector` (`Waiting for selector … failed`) | keeps running |
 | `500` | The service failed to render (e.g. Chromium crashed) | retried once on a fresh browser; if the retry fails too, the process exits and the container entrypoint restarts it |
 | `503` | Too busy: `MAX_CONCURRENT_CAPTURES` captures are rendering and `MAX_QUEUED_CAPTURES` are waiting (`too many captures: …`); answered at once with `Retry-After: 1` | keeps running |
 
-`400`, `502`, `503` and `504` are not reported to Sentry and, except for the second `502` row, not
+`400`, `413`, `415`, `502`, `503` and `504` are not reported to Sentry and, except for the second `502` row, not
 retried by the service. A `503` is safe to retry after `Retry-After` seconds.
 
 A `timeout` that is not a non-negative number is answered with `400` like an invalid
