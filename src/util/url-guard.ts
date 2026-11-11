@@ -1,3 +1,4 @@
+import { redactUrl } from '~/util/log-params'
 import { TargetError } from '~/util/target-error'
 
 /**
@@ -25,7 +26,9 @@ export const toAllowedUrl = (url: unknown): string => {
   try {
     parsed = new URL(url)
   } catch {
-    throw new TargetError(`invalid URL: ${url}`, 400)
+    // redacted as a whole here: the URL of the message is logged, and in a text whitespace ends it
+    // (~/util/log-params redactUrls), so "http://exa mple.com/?token=…" would keep its token
+    throw new TargetError(`invalid URL: ${redactUrl(url)}`, 400)
   }
   if (!schemes.has(parsed.protocol)) {
     throw new TargetError(`URL scheme ${parsed.protocol} is not allowed, only http: and https:`, 400)

@@ -69,6 +69,15 @@ Optional environment variables:
 - `SHUTDOWN_TIMEOUT_MS`, default `25000`: how long requests in flight may take after `SIGTERM`, see
   [Stopping](#stopping).
 
+### Logging
+
+Each `/pdf` and `/screenshot` request logs one line with its parameters to stdout. To keep secrets and
+bulk out of the logs, `url` is logged without credentials, query string and fragment
+(`https://example.com/doc?…`), also when it cannot be parsed; the same for URLs in any other value
+(such as a header template) and in Chromium's error messages. `html` and every other long value are
+cut to their first characters and their length. The response itself is not changed, except that the
+`400` for a `url` that cannot be parsed names it the same way (`invalid URL: http://exa mple.com/?…`).
+
 ### <a name="stopping">Stopping and restarts</a>
 
 On `SIGTERM` or `SIGINT` (`docker stop`, a Kubernetes rollout or scale-down) the service stops

@@ -49,6 +49,14 @@ describe('toAllowedUrl', () => {
     expect(error.message).toMatch(/invalid URL/)
   })
 
+  // the message is logged, where a URL ends at whitespace and redacting it there would keep the token
+  it.each([
+    ['http://exa mple.com/?token=secret', 'invalid URL: http://exa mple.com/?…'],
+    ['https://u:p w@[bad/a#token=secret', 'invalid URL: https://[bad/a#…'],
+  ])('names the malformed %j without its credentials and query', (url, message) => {
+    expect(rejection(url).message).toBe(message)
+  })
+
   it.each([['https://a.example', 'file:///etc/passwd'], { href: 'file:///etc/passwd' }, 42])(
     'rejects the non-string %j',
     (url) => {
