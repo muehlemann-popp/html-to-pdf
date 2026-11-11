@@ -41,7 +41,13 @@ afterAll(async () => {
 
 describe('Sentry', () => {
   it('receives an error thrown by a route', async () => {
-    await request(app).get('/debug-sentry').expect(500)
+    await request(app).get('/debug-sentry')
+      .expect('Content-Type', /application\/json/)
+      .expect(500)
+      // says nothing about the insides
+      .expect((res) => {
+        expect(res.body).toStrictEqual({ status: 'error', message: 'Internal Server Error' })
+      })
     await flush(5000)
     const events = envelopes.filter((e) => e.includes('"type":"event"'))
     expect(events).toHaveLength(1)
