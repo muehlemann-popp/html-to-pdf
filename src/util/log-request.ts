@@ -2,6 +2,7 @@ import { performance } from 'perf_hooks'
 import { Response } from 'express'
 import { captureException } from '@sentry/node'
 import { CaptureRejectedError } from '~/controller/capture-slots'
+import { redactUrls } from '~/util/log-params'
 import { TargetError } from '~/util/target-error'
 import timestamp from '~/util/timestamp'
 
@@ -52,7 +53,7 @@ export const processRequestError = async <T> (
     if (err instanceof TargetError) {
       // the caller's page failed, not the service: no stack trace, nothing for Sentry
       // eslint-disable-next-line no-console
-      console.warn(`[${timestamp()}] ${err.status} at ${requestInfo}. "${err.message}"`)
+      console.warn(`[${timestamp()}] ${err.status} at ${requestInfo}. "${redactUrls(err.message)}"`)
       res.status(err.status).json({ status: 'error', message: err.message })
     } else if (err instanceof CaptureRejectedError) {
       // too busy, not broken: no stack trace, nothing for Sentry
@@ -63,7 +64,7 @@ export const processRequestError = async <T> (
     } else {
       // eslint-disable-next-line no-console
       console.error(
-        `[${timestamp()}] Error at ${requestInfo}. "${err.message}"\n${err.stack}`,
+        `[${timestamp()}] Error at ${requestInfo}. "${redactUrls(err.message)}"\n${redactUrls(String(err.stack))}`,
       )
       res.status(500).json({ status: 'error', message: err.message })
       captureException(err)

@@ -20,4 +20,15 @@ describe('logException', () => {
     expect(console.error).toHaveBeenCalledWith(expect.stringMatching(/Exception at test: "test"/))
     consoleErrorMock.mockRestore()
   })
+
+  it('keeps credentials and query strings of URLs out of the log, not out of the error', async () => {
+    const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const error = new Error('net::ERR_NAME_NOT_RESOLVED at https://u:p@host.invalid/a?token=secret')
+
+    await expect(logException('page.goto', async () => { throw error })).rejects.toBe(error)
+    expect(console.error).toHaveBeenCalledWith(expect.not.stringMatching(/secret|u:p/))
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('https://host.invalid/a?…'))
+    expect(error.message).toContain('token=secret')
+    consoleErrorMock.mockRestore()
+  })
 })

@@ -69,6 +69,14 @@ Optional environment variables:
 - `SHUTDOWN_TIMEOUT_MS`, default `25000`: how long requests in flight may take after `SIGTERM`, see
   [Stopping](#stopping).
 
+### Logging
+
+Each `/pdf` and `/screenshot` request logs one line with its parameters to stdout. To keep secrets and
+bulk out of the logs, `url` is logged without credentials, query string and fragment
+(`https://example.com/doc?…`), the same for URLs in Chromium's error messages, and `html` and every
+other long value are cut to their first characters and their length. The response itself is not
+changed.
+
 ### <a name="stopping">Stopping and restarts</a>
 
 On `SIGTERM` or `SIGINT` (`docker stop`, a Kubernetes rollout or scale-down) the service stops

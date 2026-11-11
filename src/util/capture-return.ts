@@ -4,6 +4,7 @@ import capture from '~/controller/capture'
 import { CaptureRejectedError, captureSlots } from '~/controller/capture-slots'
 import { CaptureOutcome, captureDuration } from '~/controller/metrics'
 import { registerUnrecoverableError } from '~/util/error-trigger'
+import { describeParams } from '~/util/log-params'
 import { TargetError, toRetriedTargetError } from '~/util/target-error'
 import timestamp from '~/util/timestamp'
 import { logRequestTime, processRequestError } from '~/util/log-request'
@@ -22,14 +23,8 @@ const captureAndReturn = async (
   fileName: string,
   params: CaptureParameters,
 ): Promise<boolean> => {
-  const paramsString: string = JSON.stringify(params, (key, value) => {
-    // html part of the request will definitely be too long to log it
-    if (key === 'html' && typeof value === 'string' && value.length > 10) {
-      return `${value.substr(0, 10)}… [${value.length}]`
-    }
-    return value
-  })
-  const requestInfo = `Capture ${CaptureType[type]} with params ${paramsString}`
+  // html and other long values are cut, the url loses its credentials and query (~/util/log-params)
+  const requestInfo = `Capture ${CaptureType[type]} with params ${describeParams(params)}`
   const started = performance.now()
   const observe = (outcome: CaptureOutcome) => captureDuration.observe(
     { type: CaptureType[type].toLowerCase(), outcome },

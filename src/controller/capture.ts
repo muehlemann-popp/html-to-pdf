@@ -10,6 +10,7 @@ import puppeteer, {
 import { acquireContext, Lease } from '~/controller/browser'
 import { CaptureParameters, CaptureType } from '~/interface'
 import { intFromEnv } from '~/util/env'
+import { redactUrls } from '~/util/log-params'
 import { TargetError, toTargetError } from '~/util/target-error'
 import { toAllowedUrl } from '~/util/url-guard'
 import timestamp from '~/util/timestamp'
@@ -62,7 +63,7 @@ export const logException = async <T> (when: string, process: () => Promise<T>):
   } catch (e) {
     const err = e as Error
     // eslint-disable-next-line no-console
-    console.error(`[${timestamp()}] Exception at ${when}: "${err.message}"`)
+    console.error(`[${timestamp()}] Exception at ${when}: "${redactUrls(err.message)}"`)
     // catching errors to sentry is done at higher level, exception stack logging as well
     throw err
   }
