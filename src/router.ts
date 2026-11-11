@@ -135,7 +135,7 @@ router.get('/selfcheck', async (req: Request, res: Response) => {
 })
 
 /**
- * Can be used to check alive status
+ * Prometheus metrics, see README "GET /metrics"
  */
 router.get('/metrics', async (req: Request, res: Response) => {
   await logRequest('/metrics', res, false, async () => {

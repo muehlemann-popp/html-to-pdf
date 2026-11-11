@@ -56,9 +56,9 @@ const networkIdleConcurrency: Partial<Record<PuppeteerLifeCycleEvent, number>> =
   networkidle2: 2,
 }
 
-export const logException = async <T> (when: string, process: () => Promise<T>): Promise<T> => {
+export const logException = async <T> (when: string, work: () => Promise<T>): Promise<T> => {
   try {
-    return await process()
+    return await work()
   } catch (e) {
     const err = e as Error
     // eslint-disable-next-line no-console
@@ -69,9 +69,9 @@ export const logException = async <T> (when: string, process: () => Promise<T>):
 }
 
 // loading what the caller asked for: its failures are the caller's, see ~/util/target-error
-const navigate = async (when: string, process: () => Promise<unknown>): Promise<void> => {
+const navigate = async (when: string, work: () => Promise<unknown>): Promise<void> => {
   try {
-    await logException(when, process)
+    await logException(when, work)
   } catch (e) {
     throw toTargetError(e)
   }

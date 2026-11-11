@@ -4,6 +4,9 @@ import router from '~/router'
 
 const app: express.Application = express()
 
+// no "X-Powered-By: Express" on every response
+app.disable('x-powered-by')
+
 app.use(express.json({ limit: '30mb' }))
 app.use('/', router)
 // after all routes; reports what a route throws (see /debug-sentry, SENTRY_DEBUG=1), a no-op without SENTRY_DSN
