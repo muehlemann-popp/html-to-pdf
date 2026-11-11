@@ -5,7 +5,7 @@ import puppeteer, { TimeoutError } from 'puppeteer'
 import { closeBrowser } from '~/controller/browser'
 import capture, { defaultViewportOptions } from '~/controller/capture'
 import { CaptureType } from '~/interface'
-import { TargetError } from '~/util/target-error'
+import { CaptureTimeoutError, TargetError } from '~/util/target-error'
 
 // vi.mock is hoisted above the imports, so everything its factory uses has to be hoisted too
 const { pageProto, contextProto, browserProto } = vi.hoisted(() => {
@@ -276,11 +276,26 @@ describe('capture', () => {
   ] as const)('stops waiting for %s after the timeout and replaces the browser', async (_, type, method) => {
     pageProto[method].mockImplementationOnce(() => new Promise(() => undefined))
     const error = await capture(type, { timeout: 50 }).catch((e) => e)
-    expect(error).toBeInstanceOf(TimeoutError)
+    expect(error).toBeInstanceOf(CaptureTimeoutError)
     expect(error).not.toBeInstanceOf(TargetError)
     expect(error.message).toMatch(/timed out after \d+ms/)
     expect(contextProto.close).toHaveBeenCalled()
     expect(browserProto.close).toHaveBeenCalled()
+  })
+
+  // puppeteer's own pdf timeout ("Timed out after waiting …ms") is told apart from a launch timeout too
+  it('reports page.pdf running into its timeout as a CaptureTimeoutError', async () => {
+    pageProto.pdf.mockRejectedValueOnce(new TimeoutError('Timed out after waiting 50ms'))
+    const error = await capture(CaptureType.PDF, { timeout: 50 }).catch((e) => e)
+    expect(error).toBeInstanceOf(CaptureTimeoutError)
+    expect(error.message).toMatch(/^page\.pdf timed out after \d+ms$/)
+    expect(browserProto.close).toHaveBeenCalled()
+  })
+
+  it('stops waiting for a PDF stream that never ends after the timeout', async () => {
+    pageProto.pdf.mockImplementationOnce(() => new Promise(() => undefined))
+    const error = await capture(CaptureType.PDF, { timeout: 50 }).catch((e) => e)
+    expect(error).toBeInstanceOf(CaptureTimeoutError)
   })
 
   it('uses defaults as expected', async () => {

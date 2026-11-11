@@ -11,7 +11,7 @@ import puppeteer, {
 import { acquireContext, Lease } from '~/controller/browser'
 import { CaptureParameters, CaptureType } from '~/interface'
 import { intFromEnv } from '~/util/env'
-import { TargetError, toTargetError } from '~/util/target-error'
+import { CaptureTimeoutError, TargetError, toTargetError } from '~/util/target-error'
 import { toAllowedUrl } from '~/util/url-guard'
 import timestamp from '~/util/timestamp'
 
@@ -70,15 +70,19 @@ export const logException = async <T> (when: string, process: () => Promise<T>):
 }
 
 // puppeteer has no timeout for a screenshot or for evaluating in the page (only its 180 s protocol
-// timeout), so these are raced against one; the work left behind dies with the browser, which a
-// failed capture replaces
+// timeout), and page.pdf's own does not cover reading the PDF stream, so these are raced against one;
+// the work left behind dies with the browser, which a failed capture replaces. Either timeout becomes a
+// CaptureTimeoutError, which the retry tells apart from a TimeoutError of the service (a launch)
 const within = async <T> (ms: number, what: string, work: () => Promise<T>): Promise<T> => {
   let timer: NodeJS.Timeout | undefined
+  const timedOut = () => new CaptureTimeoutError(`${what} timed out after ${ms}ms`)
   try {
     return await Promise.race([
-      work(),
+      work().catch((e) => {
+        throw e instanceof TimeoutError ? timedOut() : e
+      }),
       new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new TimeoutError(`${what} timed out after ${ms}ms`)), ms)
+        timer = setTimeout(() => reject(timedOut()), ms)
       }),
     ])
   } finally {
@@ -217,10 +221,11 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       if (pdfOptions?.path) {
         delete pdfOptions.path
       }
+      const ms = captureRemaining()
       buffer = await logException(
         'page.pdf',
         // the caller's pdfOptions.timeout is replaced: it must not lift the limit
-        () => page.pdf({ ...defaultPDFOptions, ...pdfOptions || {}, timeout: captureRemaining() }),
+        () => within(ms, 'page.pdf', () => page.pdf({ ...defaultPDFOptions, ...pdfOptions || {}, timeout: ms })),
       )
     }
     await logException('page.close', () => page.close())

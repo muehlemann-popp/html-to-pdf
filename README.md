@@ -232,8 +232,9 @@ is provided `about:blank` will be printed.
   - `timeout: number`, optional, milliseconds, defaults to 60000. At most `MAX_TIMEOUT_MS` (default
     120000): a larger value is lowered to it. Anything but a non-negative number is answered with `400`.
     Time spent waiting for a free slot (see `MAX_QUEUED_CAPTURES`) does not count. Loading the page
-    has this long, and then waiting for its fonts and printing or capturing it has the same again, so a
-    request can take up to twice `timeout`. `pdfOptions.timeout` is ignored.
+    has this long, and then waiting for its fonts and printing or capturing it has the same again. A
+    print or capture that runs out of time is retried once on a fresh browser, which loads the page
+    again, so a request can take up to four times `timeout`. `pdfOptions.timeout` is ignored.
     See [puppeteer docs for `page.setDefaultNavigationTimeout()`](https://pptr.dev/api/puppeteer.page.setdefaultnavigationtimeout)
 
   Simplest payload can be similar to:
