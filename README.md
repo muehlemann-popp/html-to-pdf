@@ -51,7 +51,8 @@ not count, see [Errors](#errors).
 
 Optional environment variables:
 
-- `PORT`, default `4000`.
+- `PORT`, default `4000`: an integer up to 65535 (`0`: any free port). Like every numeric variable
+  below, a value that is not valid (empty, not an integer, out of range) gives the default.
 - `MAX_CONCURRENT_CAPTURES`, default `8`: captures that render at the same time.
 - `MAX_QUEUED_CAPTURES`, default `32`: captures that wait for a free slot, in arrival order; any
   request beyond that is answered with `503` and `Retry-After: 1`. `0` rejects as soon as all slots

@@ -1,5 +1,6 @@
 import puppeteer, { Browser, BrowserContext } from 'puppeteer'
 import { browserLaunches, browserRetirements, RetireReason } from '~/controller/metrics'
+import { intFromEnv } from '~/util/env'
 import timestamp from '~/util/timestamp'
 
 /**
@@ -11,8 +12,9 @@ import timestamp from '~/util/timestamp'
  BROWSER_IDLE_TIMEOUT_MS without requests, so a long-lived Chromium can neither stay broken nor grow.
 */
 
-const maxCaptures = Number(process.env.BROWSER_MAX_CAPTURES) || 100
-const idleTimeout = Number(process.env.BROWSER_IDLE_TIMEOUT_MS) || 30000
+// like the other variables (~/util/env): an integer of at least 1, anything else gives the default
+const maxCaptures = intFromEnv('BROWSER_MAX_CAPTURES', 100, 1)
+const idleTimeout = intFromEnv('BROWSER_IDLE_TIMEOUT_MS', 30000, 1)
 
 /**
  Chromium runs without its sandbox by default (--no-sandbox), so a renderer exploited by a page runs
