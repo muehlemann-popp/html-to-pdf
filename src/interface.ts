@@ -11,6 +11,19 @@ export enum CaptureMime {
   PNG = 'image/png',
   PDF = 'application/pdf',
   JPG = 'image/jpeg',
+  WEBP = 'image/webp',
+}
+
+// the Content-Type of a screenshot of the requested `screenshotOptions.type`, png when none
+export const screenshotMime = (type: unknown): CaptureMime => {
+  switch (type) {
+    case 'jpeg':
+      return CaptureMime.JPG
+    case 'webp':
+      return CaptureMime.WEBP
+    default:
+      return CaptureMime.PNG
+  }
 }
 
 export interface CustomScreenshotOptions {
