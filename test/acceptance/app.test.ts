@@ -255,6 +255,18 @@ describe('Basic routing', () => {
         })
     })
 
+    // Chromium renders only the clip: this viewport alone would be refused, with the sandbox it crashed
+    it('takes a small clip of a viewport too large to capture as a whole', async () => {
+      await request(app).post('/screenshot')
+        .send({
+          html: '<p>x</p>',
+          viewport: { width: 16000, height: 16000, deviceScaleFactor: 4 },
+          screenshotOptions: { clip: { x: 0, y: 0, width: 100, height: 100 } },
+        })
+        .expect('Content-Type', 'image/png')
+        .expect(200)
+    })
+
     it('stays healthy and keeps printing afterwards', async () => {
       await request(app).get('/health').expect(200)
       const content: string = await downloadPDF((req) => req.get('/pdf'))

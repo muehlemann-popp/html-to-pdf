@@ -138,19 +138,21 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
   // html wins over url, an empty or missing url prints about:blank
   const target = params.html ? null : toAllowedUrl(params.url || defaultUrl)
   // the pixels a screenshot will have, as far as the request tells (see ~/util/screenshot-size); a
-  // fullPage screenshot is checked again once the page's size is known
+  // fullPage screenshot is checked again once the page's size is known. With a clip, Chromium captures
+  // only the clip: a 64000 × 16000 viewport with a 100 × 100 clip worked with and without the sandbox
   const scale = params.viewport?.deviceScaleFactor ?? 1
   if (captureType === CaptureType.Screenshot) {
     const clip = params.screenshotOptions?.clip
     if (clip) {
       checkScreenshotSize('screenshotOptions.clip', clip.width, clip.height, (clip.scale ?? 1) * scale)
+    } else {
+      checkScreenshotSize(
+        'the viewport',
+        params.viewport?.width ?? defaultViewportOptions.width,
+        params.viewport?.height ?? defaultViewportOptions.height,
+        scale,
+      )
     }
-    checkScreenshotSize(
-      'the viewport',
-      params.viewport?.width ?? defaultViewportOptions.width,
-      params.viewport?.height ?? defaultViewportOptions.height,
-      scale,
-    )
   }
   try {
     let page: Page

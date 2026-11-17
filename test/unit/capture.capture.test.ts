@@ -367,6 +367,21 @@ describe('capture', () => {
     expect(pageProto.pdf).toHaveBeenCalled()
   })
 
+  // Chromium captures only the clip, whatever the size of the viewport
+  it('checks only the clip of a screenshot with a clip, not its viewport', async () => {
+    await capture(CaptureType.Screenshot, {
+      viewport: { width: 16000, height: 16000, deviceScaleFactor: 4 },
+      screenshotOptions: { clip: { x: 0, y: 0, width: 100, height: 100 } },
+    })
+    expect(pageProto.screenshot).toHaveBeenCalledTimes(1)
+    const error = await capture(CaptureType.Screenshot, {
+      viewport: { width: 1200, height: 800, deviceScaleFactor: 4 },
+      screenshotOptions: { clip: { x: 0, y: 0, width: 5000, height: 5000 } },
+    }).catch((e) => e)
+    expect(error).toBeInstanceOf(TargetError)
+    expect(error.message).toMatch(/screenshotOptions\.clip is 20000 × 20000 px/)
+  })
+
   it('rejects a fullPage screenshot of a page too large as a 400 and keeps the browser', async () => {
     pageProto.evaluate.mockResolvedValueOnce([1200, 100000])
     const error = await capture(CaptureType.Screenshot, {
