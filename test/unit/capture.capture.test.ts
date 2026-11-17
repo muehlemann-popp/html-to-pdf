@@ -192,6 +192,50 @@ describe('capture', () => {
     expect(contextProto.newPage).not.toHaveBeenCalled()
   })
 
+  // puppeteer throws a plain Error on these, which would be taken for a service failure
+  it.each([
+    ['html', { html: 123 as unknown as string }],
+    ['waitUntil', { html: '<html />', waitUntil: 'load' as unknown as [] }],
+    ['pdfOptions.format', { pdfOptions: { format: 'bogus' } as never }],
+    ['viewport.width', { viewport: { width: -5, height: 10 } }],
+    ['screenshotOptions.type', { screenshotOptions: { type: 'gif' } as never }],
+  ])('rejects invalid %s as a 400 without opening a browser', async (_, params) => {
+    const error = await capture(CaptureType.PDF, params).catch((e) => e)
+    expect(error).toBeInstanceOf(TargetError)
+    expect(error.status).toBe(400)
+    expect(puppeteer.launch).not.toHaveBeenCalled()
+    expect(pageProto.pdf).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['pdf', CaptureType.PDF, 'pdf'],
+    ['screenshot', CaptureType.Screenshot, 'screenshot'],
+  ] as const)('reports options that Chromium rejects for the %s as a 400 and keeps the browser', async (_, type, method) => {
+    pageProto[method].mockRejectedValueOnce(new Error('Protocol error (Page.printToPDF): paper width is zero or negative'))
+    const error = await capture(type, {}).catch((e) => e)
+    expect(error).toBeInstanceOf(TargetError)
+    expect(error.status).toBe(400)
+    expect(contextProto.close).toHaveBeenCalled()
+    expect(browserProto.close).not.toHaveBeenCalled()
+  })
+
+  it('reports an invalid viewport that Chromium rejects as a 400', async () => {
+    pageProto.setViewport.mockRejectedValueOnce(new Error(
+      'Protocol error (Emulation.setDeviceMetricsOverride): Width and height values must be positive, not greater than 10000000',
+    ))
+    const error = await capture(CaptureType.PDF, { viewport: { width: 99999999, height: 10 } }).catch((e) => e)
+    expect(error).toBeInstanceOf(TargetError)
+    expect(error.status).toBe(400)
+  })
+
+  it('still treats a failing browser during pdf as a service failure', async () => {
+    pageProto.pdf.mockRejectedValueOnce(new Error('Protocol error (Page.printToPDF): Target closed'))
+    const error = await capture(CaptureType.PDF, {}).catch((e) => e)
+    expect(error).not.toBeInstanceOf(TargetError)
+    // the browser is replaced, the retry gets a fresh one
+    expect(browserProto.close).toHaveBeenCalled()
+  })
+
   it('reports an invalid selector as a 400 before loading the page and keeps the browser', async () => {
     const syntaxError = new Error("SyntaxError: Failed to execute 'querySelector' on 'Document': '#' is not a valid selector.")
     pageProto.$.mockRejectedValueOnce(syntaxError)

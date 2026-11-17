@@ -12,6 +12,7 @@ const mimeToExtension: Record<CaptureMime, string> = {
   [CaptureMime.PDF]: 'pdf',
   [CaptureMime.JPG]: 'jpg',
   [CaptureMime.PNG]: 'png',
+  [CaptureMime.WEBP]: 'webp',
 }
 
 // resolves true once the capture was sent, false when the request was answered with an error
@@ -25,7 +26,7 @@ const captureAndReturn = async (
   const paramsString: string = JSON.stringify(params, (key, value) => {
     // html part of the request will definitely be too long to log it
     if (key === 'html' && typeof value === 'string' && value.length > 10) {
-      return `${value.substr(0, 10)}… [${value.length}]`
+      return `${value.slice(0, 10)}… [${value.length}]`
     }
     return value
   })

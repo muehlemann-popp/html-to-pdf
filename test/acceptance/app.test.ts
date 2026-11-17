@@ -95,6 +95,29 @@ describe('Basic routing', () => {
       .expect(200)
   })
 
+  // the Content-Type and the file name follow screenshotOptions.type, webp was sent as image/png
+  it.each([
+    [undefined, 'image/png', 'png', 'PNG'],
+    ['png', 'image/png', 'png', 'PNG'],
+    ['jpeg', 'image/jpeg', 'jpg', 'JFIF'],
+    ['webp', 'image/webp', 'webp', 'WEBP'],
+  ])('should answer a POST /screenshot of type %s as %s', async (type, mime, extension, magic) => {
+    const res = await request(app)
+      .post('/screenshot')
+      .send({ html: '<p>x</p>', screenshotOptions: { type } })
+      .expect('Content-Type', mime)
+      .expect('Content-Disposition', new RegExp(`filename="?screenshot\\.${extension}"?`))
+      .expect(200)
+      .buffer()
+      .parse((r, callback) => {
+        const chunks: Buffer[] = []
+        r.on('data', (chunk: Buffer) => chunks.push(chunk))
+        r.on('end', () => callback(null, Buffer.concat(chunks)))
+      })
+    // the bytes are what the Content-Type says: PNG header, JFIF in a JPEG, RIFF…WEBP
+    expect((res.body as Buffer).toString('latin1', 0, 16)).toContain(magic)
+  })
+
   it('should print about:blank when GET /pdf without parameters', async () => {
     const content: string = await downloadPDF((req) => req.get('/pdf'))
     testBlankPDFContent(content)
@@ -162,12 +185,36 @@ describe('Basic routing', () => {
       ['an unknown puppeteer selector', () => ({ waitForSelector: '::-p-madeup' }), 400, /Unknown selector type/],
       ['an empty selector', () => ({ waitForSelector: '' }), 400, /non-empty string/],
       ['a selector that is not a string', () => ({ waitForSelector: ['#pdf-ready'] }), 400, /non-empty string/],
+      // puppeteer throws a plain Error on these, which used to take the retry and make the process exit
+      ['html that is not a string', () => ({ html: 123 }), 400, /html must be a string/],
+      ['waitUntil that is not a list', () => ({ html: '<p>x</p>', waitUntil: 'load' }), 400, /waitUntil/],
+      ['an unknown paper format', () => ({ html: '<p>x</p>', pdfOptions: { format: 'bogus' } }), 400, /pdfOptions.format/],
+      ['a negative viewport', () => ({ html: '<p>x</p>', viewport: { width: -5, height: 10 } }), 400, /viewport.width/],
+      // only Chromium knows these are unusable
+      ['a paper width of 0', () => ({ html: '<p>x</p>', pdfOptions: { width: 0 } }), 400, /paper width/],
+      ['a page range that does not exist', () => ({ html: '<p>x</p>', pdfOptions: { pageRanges: '9' } }), 400, /Page range/],
+      ['a boolean option of the wrong type', () => ({ html: '<p>x</p>', pdfOptions: { landscape: 'yes' } }), 400, /Invalid parameters/],
     ])('answers %s with its status', async (_, body, status, message) => {
       await request(app).post('/pdf').send(body())
         .expect('Content-Type', /application\/json/)
         .expect(status)
         .expect((res) => {
           expect(res.body.status).toBe('error')
+          expect(res.body.message).toMatch(message)
+        })
+    })
+
+    it.each([
+      ['an unknown image type', { type: 'gif' }, /screenshotOptions.type/],
+      ['a quality for png', { quality: 50 }, /quality needs/],
+      ['clip together with fullPage', { clip: { x: 0, y: 0, width: 5, height: 5 }, fullPage: true }, /mutually exclusive/],
+      ['an unknown media type', { emulateMediaType: 'foo' }, /emulateMediaType/],
+      ['a number where Chromium wants a boolean', { fromSurface: 5 }, /Invalid parameters/],
+    ])('answers a screenshot with %s with a 400', async (_, screenshotOptions, message) => {
+      await request(app).post('/screenshot').send({ html: '<p>x</p>', screenshotOptions })
+        .expect('Content-Type', /application\/json/)
+        .expect(400)
+        .expect((res) => {
           expect(res.body.message).toMatch(message)
         })
     })
