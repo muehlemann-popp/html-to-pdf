@@ -4,6 +4,7 @@ import puppeteer, {
   PDFOptions,
   PuppeteerLifeCycleEvent,
   SetContentWaitForOptions,
+  TimeoutError,
   Viewport,
 } from 'puppeteer'
 
@@ -11,7 +12,9 @@ import { acquireContext, Lease } from '~/controller/browser'
 import { CaptureParameters, CaptureType } from '~/interface'
 import { intFromEnv } from '~/util/env'
 import { redactUrls } from '~/util/log-params'
-import { TargetError, toOptionsError, toTargetError } from '~/util/target-error'
+import {
+  CaptureTimeoutError, TargetError, toOptionsError, toTargetError,
+} from '~/util/target-error'
 import { toAllowedUrl } from '~/util/url-guard'
 import { validateParams } from '~/util/validate-params'
 import timestamp from '~/util/timestamp'
@@ -67,6 +70,27 @@ export const logException = async <T> (when: string, work: () => Promise<T>): Pr
     console.error(`[${timestamp()}] Exception at ${when}: "${redactUrls(err.message)}"`)
     // catching errors to sentry is done at higher level, exception stack logging as well
     throw err
+  }
+}
+
+// puppeteer has no timeout for a screenshot or for evaluating in the page (only its 180 s protocol
+// timeout), and page.pdf's own does not cover reading the PDF stream, so these are raced against one;
+// the work left behind dies with the browser, which a failed capture replaces. Either timeout becomes a
+// CaptureTimeoutError, which the retry tells apart from a TimeoutError of the service (a launch)
+const within = async <T> (ms: number, what: string, work: () => Promise<T>): Promise<T> => {
+  let timer: NodeJS.Timeout | undefined
+  const timedOut = () => new CaptureTimeoutError(`${what} timed out after ${ms}ms`)
+  try {
+    return await Promise.race([
+      work().catch((e) => {
+        throw e instanceof TimeoutError ? timedOut() : e
+      }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(timedOut()), ms)
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -172,9 +196,19 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
         timeout: remaining(),
       }))
     }
+    // fonts and the capture itself get a budget of their own, `timeout` again: loading may have used up
+    // the first. Without it puppeteer limits page.pdf to its default of 30 s (which `pdfOptions.timeout: 0`
+    // lifts altogether) and does not limit a screenshot at all
+    const captureDeadline = Date.now() + timeout
+    const captureRemaining = () => Math.max(captureDeadline - Date.now(), 1)
+
     await logException(
       'page.evaluateHandle',
-      () => page.evaluateHandle('document.fonts.ready'),
+      () => within(
+        captureRemaining(),
+        'document.fonts.ready',
+        () => page.evaluateHandle('document.fonts.ready'),
+      ),
     )
 
     let buffer: Uint8Array
@@ -191,16 +225,22 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       }
       buffer = await applyOptions(
         'page.screenshot',
-        () => page.screenshot({ ...screenshotOptions || {}, encoding: 'binary' }),
+        () => within(
+          captureRemaining(),
+          'page.screenshot',
+          () => page.screenshot({ ...screenshotOptions || {}, encoding: 'binary' }),
+        ),
       )
     } else {
       // never save files to disk locally
       if (pdfOptions?.path) {
         delete pdfOptions.path
       }
+      const ms = captureRemaining()
       buffer = await applyOptions(
         'page.pdf',
-        () => page.pdf({ ...defaultPDFOptions, ...pdfOptions || {} }),
+        // the caller's pdfOptions.timeout is replaced: it must not lift the limit
+        () => within(ms, 'page.pdf', () => page.pdf({ ...defaultPDFOptions, ...pdfOptions || {}, timeout: ms })),
       )
     }
     await logException('page.close', () => page.close())
