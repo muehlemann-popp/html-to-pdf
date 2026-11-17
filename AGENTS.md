@@ -30,8 +30,9 @@ point it at one with `PUPPETEER_EXECUTABLE_PATH`, or run tests in the `test` ima
   never lower or bypass it, and do not pin a version younger than that.
 - **Chromium comes from Alpine, not from puppeteer**: the `chromium-headless-shell` package
   ([ADR 0001](docs/adr/0001-chromium-headless-shell.md)). The `alpine:3.XX` tag in
-  `deploy/Dockerfile` decides the Chromium major; keep `puppeteer` in `package.json` on the release
-  that targets the same major (its `PUPPETEER_REVISIONS`). The `node:*-alpine3.XX` tag must name the
+  `deploy/Dockerfile` and the day of the build decide the Chromium major (Alpine updates it within a
+  release, 3.24 went from 155 to 156); keep `puppeteer` in `package.json` on the release that targets
+  the same major (its `PUPPETEER_REVISIONS`), and check it again before every release tag. The `node:*-alpine3.XX` tag must name the
   same Alpine release: only its node binary is copied into `base`.
 - The prod image has no npm, npx, corepack or yarn: `base` starts from `alpine`, and only the `yarn`,
   `builder`, `dev` and `test` stages get corepack. Do not add them back to `base`.
