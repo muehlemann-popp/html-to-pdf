@@ -103,6 +103,12 @@ const navigate = async (when: string, work: () => Promise<unknown>): Promise<voi
   }
 }
 
+// page.setContent sends the html in one protocol call, which Chromium answers only once the document is
+// written: a script that never ends (`while (true) {}`) holds it until puppeteer's 180 s protocol timeout.
+// Puppeteer's own `timeout` only starts after that call, for the lifecycle events, so the race gets this
+// much more: a page that loads slowly still ends with puppeteer's TimeoutError (a 504 right away)
+export const setContentGraceMs = 1000
+
 // applying the caller's viewport, PDF or screenshot options: what Chromium rejects there is the caller's
 const applyOptions = async <T> (when: string, process: () => Promise<T>): Promise<T> => {
   try {
@@ -175,10 +181,20 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       ) as Exclude<SetContentWaitForOptions['waitUntil'], undefined | string>
       const idle = waitUntil.map((event) => networkIdleConcurrency[event])
         .filter((concurrency): concurrency is number => concurrency !== undefined)
-      // an empty list would not wait for the document at all, only an omitted one defaults to load
-      await navigate('page.setContent', () => page.setContent(html, {
-        waitUntil: lifecycle.length ? lifecycle : ['load'],
-      }))
+      // an empty list would not wait for the document at all, only an omitted one defaults to load.
+      // Raced like printing (see `setContentGraceMs`): a call that hangs is a CaptureTimeoutError, which
+      // takes the retry on a fresh browser and then becomes a 504, instead of a service failure after
+      // twice 180 s that exits the process
+      await logException('page.setContent', () => within(
+        remaining() + setContentGraceMs,
+        'page.setContent',
+        () => page.setContent(html, {
+          waitUntil: lifecycle.length ? lifecycle : ['load'],
+        }).catch((e) => {
+          // first, or `within` would take puppeteer's TimeoutError of a slow page for a hang
+          throw toTargetError(e)
+        }),
+      ))
       if (idle.length) {
         await navigate('page.waitForNetworkIdle', () => page.waitForNetworkIdle({
           concurrency: Math.min(...idle),

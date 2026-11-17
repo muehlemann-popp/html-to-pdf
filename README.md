@@ -228,7 +228,9 @@ is provided `about:blank` will be printed.
     see [puppeteer docs for `PuppeteerLifeCycleEvent`](https://pptr.dev/api/puppeteer.puppeteerlifecycleevent).
     Defaults to all four for `url` and to `load` for `html`. For `html`, `networkidle0` / `networkidle2`
     are awaited after the content is set (no connections / at most 2 for 500 ms), and the content is
-    always awaited up to `load` at least; both waits together are bounded by `timeout`.
+    always awaited up to `load` at least; both waits together are bounded by `timeout`. `html` whose
+    scripts never let the document finish (`while (true) {}`) is given up after `timeout` plus 1 s and
+    retried once on a fresh browser, then answered with `504`.
   
   - `waitForSelector: string`, optional. After loading (`waitUntil`), wait until an element matching
     this selector is in the page, then capture. For pages whose content is rendered by JavaScript after
@@ -348,12 +350,12 @@ status that says whose problem it is:
 | `502` | The requested site failed: DNS, refused connection, TLS, certificate, redirects, broken response (`net::ERR_NAME_NOT_RESOLVED`, `net::ERR_CONNECTION_REFUSED`, `net::ERR_CERT_…`, …) | keeps running |
 | `502` | Any other `net::ERR_…` (`net::ERR_ABORTED`, `net::ERR_FAILED`, e.g. a URL that downloads a file) that a fresh browser reproduced | retried once on a fresh browser, since a failing browser reports these too; keeps running |
 | `504` | The page did not finish loading within `timeout`, including `networkidle0`/`networkidle2` and `waitForSelector` (`Waiting for selector … failed`) | keeps running |
-| `504` | Printing or capturing the loaded page took longer than `timeout` again (`page.pdf timed out after …`), on a fresh browser as well | retried once on a fresh browser, since a hung browser looks the same; keeps running |
+| `504` | Printing or capturing the loaded page took longer than `timeout` again (`page.pdf timed out after …`), or `html` whose scripts never let the document finish (`page.setContent timed out after …`), on a fresh browser as well | retried once on a fresh browser, since a hung browser looks the same; keeps running |
 | `500` | The service failed to render (e.g. Chromium crashed) | retried once on a fresh browser; if the retry fails too, the process exits and the container entrypoint restarts it |
 | `503` | Too busy: `MAX_CONCURRENT_CAPTURES` captures are rendering and `MAX_QUEUED_CAPTURES` are waiting (`too many captures: …`); answered at once with `Retry-After: 1` | keeps running |
 
-`400`, `413`, `415`, `502`, `503` and `504` are not reported to Sentry and, except for the second `502` row, not
-retried by the service. A `503` is safe to retry after `Retry-After` seconds.
+`400`, `413`, `415`, `502`, `503` and `504` are not reported to Sentry and, except for the rows that say
+so, not retried by the service. A `503` is safe to retry after `Retry-After` seconds.
 
 A `timeout` that is not a non-negative number is answered with `400` like an invalid
 `waitForSelector`, before the page is loaded.
