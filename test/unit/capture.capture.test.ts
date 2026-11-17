@@ -18,6 +18,7 @@ const { pageProto, contextProto, browserProto } = vi.hoisted(() => {
     $: vi.fn().mockResolvedValue(nil),
     waitForSelector: vi.fn().mockResolvedValue(nil),
     evaluateHandle: vi.fn().mockResolvedValue(nil),
+    evaluate: vi.fn().mockResolvedValue([1200, 800]),
     setViewport: vi.fn().mockResolvedValue(nil),
     pdf: vi.fn().mockResolvedValue(nil),
     screenshot: vi.fn().mockResolvedValue(nil),
@@ -340,6 +341,53 @@ describe('capture', () => {
     pageProto.pdf.mockImplementationOnce(() => new Promise(() => undefined))
     const error = await capture(CaptureType.PDF, { timeout: 50 }).catch((e) => e)
     expect(error).toBeInstanceOf(CaptureTimeoutError)
+  })
+
+  // more pixels than Chromium captures can kill its renderer, see ~/util/screenshot-size
+  it.each([
+    ['viewport', { viewport: { width: 16000, height: 16000, deviceScaleFactor: 4 } }, /the viewport is 64000 × 64000 px/],
+    ['viewport', { viewport: { width: 20000, height: 20000 } }, /the viewport is 20000 × 20000 px/],
+    [
+      'clip',
+      { screenshotOptions: { clip: { x: 0, y: 0, width: 10000, height: 10000, scale: 2 } } },
+      /screenshotOptions\.clip is 20000 × 20000 px/,
+    ],
+  ])('rejects a screenshot whose %s is too large as a 400 without opening a browser', async (_, params, message) => {
+    const error = await capture(CaptureType.Screenshot, params).catch((e) => e)
+    expect(error).toBeInstanceOf(TargetError)
+    expect(error.status).toBe(400)
+    expect(error.message).toMatch(message)
+    expect(puppeteer.launch).not.toHaveBeenCalled()
+  })
+
+  it('takes a screenshot of 16384 × 16384 px and prints any viewport', async () => {
+    await capture(CaptureType.Screenshot, { viewport: { width: 8192, height: 8192, deviceScaleFactor: 2 } })
+    expect(pageProto.screenshot).toHaveBeenCalled()
+    await capture(CaptureType.PDF, { viewport: { width: 16000, height: 16000, deviceScaleFactor: 4 } })
+    expect(pageProto.pdf).toHaveBeenCalled()
+  })
+
+  it('rejects a fullPage screenshot of a page too large as a 400 and keeps the browser', async () => {
+    pageProto.evaluate.mockResolvedValueOnce([1200, 100000])
+    const error = await capture(CaptureType.Screenshot, {
+      viewport: { width: 1200, height: 800, deviceScaleFactor: 2 },
+      screenshotOptions: { fullPage: true },
+    }).catch((e) => e)
+    expect(error).toBeInstanceOf(TargetError)
+    expect(error.status).toBe(400)
+    expect(error.message).toMatch(/the full page is 2400 × 200000 px/)
+    expect(pageProto.screenshot).not.toHaveBeenCalled()
+    expect(contextProto.close).toHaveBeenCalled()
+    expect(browserProto.close).not.toHaveBeenCalled()
+  })
+
+  it('measures the page only for a fullPage screenshot', async () => {
+    await capture(CaptureType.Screenshot, {})
+    expect(pageProto.evaluate).not.toHaveBeenCalled()
+    pageProto.evaluate.mockResolvedValueOnce([1200, 100000])
+    await capture(CaptureType.Screenshot, { screenshotOptions: { fullPage: true } })
+    expect(pageProto.evaluate).toHaveBeenCalledTimes(1)
+    expect(pageProto.screenshot).toHaveBeenLastCalledWith({ fullPage: true, encoding: 'binary' })
   })
 
   it('uses defaults as expected', async () => {

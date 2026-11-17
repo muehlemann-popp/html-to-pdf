@@ -67,6 +67,7 @@ describe('toOptionsError', () => {
     'Protocol error (Page.printToPDF): Page range exceeds page count',
     'Protocol error (Page.printToPDF): scale is outside of [0.1 - 2] range',
     'Protocol error (Emulation.setDeviceMetricsOverride): Width and height values must be positive, not greater than 10000000',
+    'Protocol error (Page.captureScreenshot): Page is too large.',
   ])('maps "%s" to 400', (message) => {
     const e = toOptionsError(new Error(message))
     expect(statusOf(e)).toBe(400)
@@ -92,6 +93,19 @@ describe('toRetriedTargetError', () => {
 
   it('maps a print or capture timeout that a fresh browser reproduced to 504', () => {
     expect(statusOf(toRetriedTargetError(new CaptureTimeoutError('page.pdf timed out after 1000ms')))).toBe(504)
+  })
+
+  it('maps a screenshot that a fresh browser could not capture either to 400', () => {
+    const error = toRetriedTargetError(new Error('Protocol error (Page.captureScreenshot): Unable to capture screenshot'))
+    expect(statusOf(error)).toBe(400)
+    expect((error as Error).message).toMatch(/^Protocol error \(Page\.captureScreenshot\): Unable to capture screenshot: /)
+  })
+
+  // the same message the first time is retried (src/util/capture-return.ts): a broken browser gives it too
+  it('leaves a screenshot that could not be captured a service failure the first time', () => {
+    const error = new Error('Protocol error (Page.captureScreenshot): Unable to capture screenshot')
+    expect(toOptionsError(error)).toBe(error)
+    expect(toTargetError(error)).toBe(error)
   })
 
   // e.g. Chromium not starting twice: the process has to exit and be restarted, not answer 504 forever

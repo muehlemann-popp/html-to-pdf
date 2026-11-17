@@ -12,6 +12,7 @@ import { acquireContext, Lease } from '~/controller/browser'
 import { CaptureParameters, CaptureType } from '~/interface'
 import { intFromEnv } from '~/util/env'
 import { redactUrls } from '~/util/log-params'
+import { checkScreenshotSize } from '~/util/screenshot-size'
 import {
   CaptureTimeoutError, TargetError, toOptionsError, toTargetError,
 } from '~/util/target-error'
@@ -52,6 +53,12 @@ export const defaultViewportOptions: Viewport = {
   width: 1200,
   height: 800,
 }
+
+// the CSS size of the whole document, what a fullPage screenshot captures (evaluated in the page)
+const fullPageSize = `[
+  Math.max(document.documentElement.scrollWidth, document.body ? document.body.scrollWidth : 0),
+  Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0),
+]`
 
 const debugUsingBrowserless = process.env.BROWSERLESS === '1'
 const defaultWaitUntil: PuppeteerLifeCycleEvent[] = ['domcontentloaded', 'load', 'networkidle2', 'networkidle0']
@@ -130,6 +137,21 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
   // checked before a browser is opened: only http(s), never file:// (see ~/util/url-guard);
   // html wins over url, an empty or missing url prints about:blank
   const target = params.html ? null : toAllowedUrl(params.url || defaultUrl)
+  // the pixels a screenshot will have, as far as the request tells (see ~/util/screenshot-size); a
+  // fullPage screenshot is checked again once the page's size is known
+  const scale = params.viewport?.deviceScaleFactor ?? 1
+  if (captureType === CaptureType.Screenshot) {
+    const clip = params.screenshotOptions?.clip
+    if (clip) {
+      checkScreenshotSize('screenshotOptions.clip', clip.width, clip.height, (clip.scale ?? 1) * scale)
+    }
+    checkScreenshotSize(
+      'the viewport',
+      params.viewport?.width ?? defaultViewportOptions.width,
+      params.viewport?.height ?? defaultViewportOptions.height,
+      scale,
+    )
+  }
   try {
     let page: Page
     if (debugUsingBrowserless) {
@@ -222,6 +244,15 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       // never save files to disk locally
       if (screenshotOptions?.path) {
         delete screenshotOptions.path
+      }
+      if (screenshotOptions?.fullPage) {
+        // the size puppeteer captures for fullPage (the document's content), after emulateMediaType
+        const [width, height] = await logException('page.evaluate', () => within(
+          captureRemaining(),
+          'page.evaluate',
+          () => page.evaluate(fullPageSize) as Promise<[number, number]>,
+        ))
+        checkScreenshotSize('the full page', width, height, scale)
       }
       buffer = await applyOptions(
         'page.screenshot',
