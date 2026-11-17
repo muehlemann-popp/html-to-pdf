@@ -10,8 +10,9 @@ import puppeteer, {
 import { acquireContext, Lease } from '~/controller/browser'
 import { CaptureParameters, CaptureType } from '~/interface'
 import { intFromEnv } from '~/util/env'
-import { TargetError, toTargetError } from '~/util/target-error'
+import { TargetError, toOptionsError, toTargetError } from '~/util/target-error'
 import { toAllowedUrl } from '~/util/url-guard'
+import { validateParams } from '~/util/validate-params'
 import timestamp from '~/util/timestamp'
 
 export const defaultUrl = 'about:blank'
@@ -56,9 +57,9 @@ const networkIdleConcurrency: Partial<Record<PuppeteerLifeCycleEvent, number>> =
   networkidle2: 2,
 }
 
-export const logException = async <T> (when: string, process: () => Promise<T>): Promise<T> => {
+export const logException = async <T> (when: string, work: () => Promise<T>): Promise<T> => {
   try {
-    return await process()
+    return await work()
   } catch (e) {
     const err = e as Error
     // eslint-disable-next-line no-console
@@ -69,11 +70,20 @@ export const logException = async <T> (when: string, process: () => Promise<T>):
 }
 
 // loading what the caller asked for: its failures are the caller's, see ~/util/target-error
-const navigate = async (when: string, process: () => Promise<unknown>): Promise<void> => {
+const navigate = async (when: string, work: () => Promise<unknown>): Promise<void> => {
   try {
-    await logException(when, process)
+    await logException(when, work)
   } catch (e) {
     throw toTargetError(e)
+  }
+}
+
+// applying the caller's viewport, PDF or screenshot options: what Chromium rejects there is the caller's
+const applyOptions = async <T> (when: string, process: () => Promise<T>): Promise<T> => {
+  try {
+    return await logException(when, process)
+  } catch (e) {
+    throw toOptionsError(e)
   }
 }
 
@@ -84,7 +94,9 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
   if (!params) {
     throw new Error('Capture parameters should be defined')
   }
-  // checked before a browser context is acquired, like waitForSelector
+  // checked before a browser context is acquired, like the timeout and waitForSelector: puppeteer
+  // throws on bad options, which would not be the caller's failure but the service's
+  validateParams(params)
   const timeout = navigationTimeout(params)
   const { waitForSelector } = params
   if (waitForSelector !== undefined && (typeof waitForSelector !== 'string' || !waitForSelector)) {
@@ -112,8 +124,8 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
 
     page.setDefaultNavigationTimeout(timeout)
     if (viewport || captureType === CaptureType.Screenshot) {
-      await logException(
-        'browser.newPage',
+      await applyOptions(
+        'page.setViewport',
         () => page.setViewport({ ...defaultViewportOptions, ...viewport || {} }),
       )
     }
@@ -167,7 +179,7 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
     let buffer: Uint8Array
     if (captureType === CaptureType.Screenshot) {
       if (screenshotOptions?.emulateMediaType) {
-        await logException(
+        await applyOptions(
           'page.emulateMediaType',
           () => page.emulateMediaType(screenshotOptions.emulateMediaType),
         )
@@ -176,7 +188,7 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       if (screenshotOptions?.path) {
         delete screenshotOptions.path
       }
-      buffer = await logException(
+      buffer = await applyOptions(
         'page.screenshot',
         () => page.screenshot({ ...screenshotOptions || {}, encoding: 'binary' }),
       )
@@ -185,7 +197,7 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       if (pdfOptions?.path) {
         delete pdfOptions.path
       }
-      buffer = await logException(
+      buffer = await applyOptions(
         'page.pdf',
         () => page.pdf({ ...defaultPDFOptions, ...pdfOptions || {} }),
       )

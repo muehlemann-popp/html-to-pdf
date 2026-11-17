@@ -64,6 +64,12 @@ jobs:
         id: cache
         run: echo "scope=release-$(date -u +%F)" >> "$GITHUB_OUTPUT"
 
+      # GET /version and the Sentry release of the image: the version tag (1.2.3, or git-<sha> for main)
+      # and the time of this build
+      - name: Name the build date
+        id: build-date
+        run: echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
@@ -79,3 +85,5 @@ jobs:
           set: |
             *.cache-from=type=gha,scope=${{ steps.cache.outputs.scope }}
             *.cache-to=type=gha,scope=${{ steps.cache.outputs.scope }},mode=max,ignore-error=true
+            *.args.RELEASE_ID=${{ steps.meta.outputs.version }}
+            *.args.CI_BUILD_DATE=${{ steps.build-date.outputs.date }}

@@ -5,6 +5,9 @@ import { jsonErrorHandler, requireJsonBody } from '~/util/json-errors'
 
 const app: express.Application = express()
 
+// no "X-Powered-By: Express" on every response
+app.disable('x-powered-by')
+
 app.use(express.json({ limit: '30mb' }))
 app.use(requireJsonBody)
 app.use('/', router)

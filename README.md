@@ -51,7 +51,8 @@ not count, see [Errors](#errors).
 
 Optional environment variables:
 
-- `PORT`, default `4000`.
+- `PORT`, default `4000`: an integer up to 65535 (`0`: any free port). Like every numeric variable
+  below, a value that is not valid (empty, not an integer, out of range) gives the default.
 - `MAX_CONCURRENT_CAPTURES`, default `8`: captures that render at the same time.
 - `MAX_QUEUED_CAPTURES`, default `32`: captures that wait for a free slot, in arrival order; any
   request beyond that is answered with `503` and `Retry-After: 1`. `0` rejects as soon as all slots
@@ -263,6 +264,8 @@ is provided `about:blank` will be printed.
     - `screenshotOptions: ScreenshotOptions`, optional.
       See [puppeteer docs for `ScreenshotOptions`](https://pptr.dev/api/puppeteer.screenshotoptions).
       Additionally supports emulating media type via `emulateMediaType: string` optional property.
+      `type` is `png` (default), `jpeg` or `webp`; the response's `Content-Type` and file extension
+      (`.png`, `.jpg`, `.webp`) follow it.
     
     - `viewport: Viewport`, optional, defaults to 1200×800.
       See [puppeteer docs for `Viewport`](https://pptr.dev/api/puppeteer.viewport)
@@ -306,7 +309,12 @@ is provided `about:blank` will be printed.
 
 - <a name="version">`GET /version`</a>
 
-  Returns the `RELEASE_ID`, `CI_BUILD_DATE` and `ENV` environment variables of the container.
+  Returns the `RELEASE_ID`, `CI_BUILD_DATE` and `ENV` environment variables of the container. The
+  published images set `RELEASE_ID` to their tag (`1.2.3`, or `git-<sha>` for a build of `main`) and
+  `CI_BUILD_DATE` to the time of the build; `ENV` is yours to set. An image built without the build
+  args (`docker build --build-arg RELEASE_ID=… --build-arg CI_BUILD_DATE=…`) answers empty strings
+  until you set the variables when running it, which always wins over the image's.
+  `RELEASE_ID` is also the Sentry release.
 
 - <a name="root">`GET /`</a>
   
@@ -321,6 +329,7 @@ status that says whose problem it is:
 | --- | --- | --- |
 | `400` | The URL cannot be loaded at all: not a string, malformed, a scheme other than `http`/`https` (`invalid URL: …`, `URL scheme file: is not allowed, …`; checked before the browser is used), or a blocked port (`net::ERR_UNSAFE_PORT`, …) | keeps running |
 | `400` | `waitForSelector` is not a non-empty string, or not a valid selector (`SyntaxError: … is not a valid selector`, `Unknown selector type: …`); checked before the page is loaded | keeps running |
+| `400` | An option cannot be used: `html` not a string, `waitUntil` not a list of the four events, an unknown `pdfOptions.format`, a malformed `width`/`height`/`margin`, a `scale` outside 0.1–2, a `viewport` with a non-positive size, an unknown screenshot `type`, a `quality` out of range or for png, `clip` together with `fullPage`, …, or a value that Chromium itself refuses (`Invalid parameters …`, `paper width is zero or negative`, `Page range …`); the body not being a JSON object. Checked before the page is loaded where possible | keeps running |
 | `400` | The body is not valid JSON | keeps running |
 | `413` | The body is larger than 30 MB | keeps running |
 | `415` | A body was sent with a `Content-Type` other than JSON (`text/plain`, a form, none): it would otherwise be ignored and a blank page printed. Send `Content-Type: application/json` | keeps running |
