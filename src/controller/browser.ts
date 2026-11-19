@@ -1,5 +1,6 @@
 import puppeteer, { Browser, BrowserContext } from 'puppeteer'
 import { browserLaunches, browserRetirements, RetireReason } from '~/controller/metrics'
+import { protocolTimeout } from '~/controller/timeouts'
 import { intFromEnv } from '~/util/env'
 import timestamp from '~/util/timestamp'
 
@@ -35,6 +36,8 @@ const launch = async (): Promise<Browser> => {
     // shutdown (~/util/graceful-shutdown) lets finish before it closes the browser itself
     handleSIGINT: false,
     handleSIGTERM: false,
+    // above every request's timeout, see ~/controller/timeouts
+    protocolTimeout,
     // We try to solve issues with google chrome sometimes stopping to work
     // As suggested here we try to use pipe instead of websocket: https://github.com/puppeteer/puppeteer/issues/2735
     // pipe: true,

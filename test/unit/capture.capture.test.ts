@@ -82,6 +82,24 @@ describe('capture', () => {
     expect(contextProto.close).toHaveBeenCalled()
   })
 
+  // Page.setDocumentContent does not return while a script of the html runs (`while (true) {}`)
+  it('stops waiting for html that never finishes loading after the timeout, as a 504, and keeps the browser', async () => {
+    pageProto.setContent.mockImplementationOnce(() => new Promise(() => undefined))
+    const error = await capture(CaptureType.PDF, { html: '<html />', timeout: 50 }).catch((e) => e)
+    expect(error).toBeInstanceOf(TargetError)
+    expect(error.status).toBe(504)
+    expect(error.message).toMatch(/^page\.setContent timed out after \d+ms$/)
+    expect(pageProto.pdf).not.toHaveBeenCalled()
+    expect(contextProto.close).toHaveBeenCalled()
+    expect(browserProto.close).not.toHaveBeenCalled()
+  })
+
+  // a protocol timeout is a service failure, so it must not end any wait before the request's timeout
+  it('launches the browser with a protocol timeout above MAX_TIMEOUT_MS', async () => {
+    await capture(CaptureType.PDF, {})
+    expect(puppeteer.launch).toHaveBeenCalledWith(expect.objectContaining({ protocolTimeout: 130000 }))
+  })
+
   it('reports an unreachable url as a 502 and keeps the browser', async () => {
     pageProto.goto.mockRejectedValueOnce(new Error('net::ERR_NAME_NOT_RESOLVED at http://does-not-exist.invalid'))
     const error = await capture(CaptureType.PDF, { url: 'http://does-not-exist.invalid' }).catch((e) => e)

@@ -47,6 +47,16 @@ run the container out of memory. The memory figures this is sized on come from
   `4 × MAX_TIMEOUT_MS`. Any other puppeteer `TimeoutError` outside loading, such as Chromium not
   starting within puppeteer's launch timeout, stays a service failure: twice in a row, the process
   exits and is restarted.
+- **`html` is raced against the first budget as well.** puppeteer's `setContent` timeout covers only
+  the wait for `load`, not handing over the document (`Page.setDocumentContent`), which does not
+  return while a script of it runs. `<script>while (true) {}</script>` used to wait for puppeteer's
+  180 s protocol timeout, a plain `ProtocolError`, so it was retried for another 180 s and then the
+  process exited with every other request in flight. Now it is a `504` after `timeout` like any page
+  that does not load, the browser stays, and closing the context ends the renderer.
+- **The protocol timeout is `MAX_TIMEOUT_MS` + 10 s** (`src/controller/timeouts.ts`, puppeteer's
+  default is 180 s). Every wait that a request can make long ends at its `timeout` first, also when
+  `MAX_TIMEOUT_MS` is above 180 s, where a slow print used to hit the protocol timeout and count as a
+  service failure.
 - Invalid values of the three variables (not an integer, below their minimum of 1, 0 and 1) fall
   back to the default, like `BROWSER_MAX_CAPTURES`.
 
@@ -70,13 +80,17 @@ limit.
   `captureSlots.run`; the `AbortSignal` fires when the response is closed before it finished.
 - `src/util/log-request.ts` answers `CaptureRejectedError` with `503` and `Retry-After`.
 - `src/controller/capture.ts` computes the navigation timeout (`navigationTimeout`) before acquiring
-  a browser context.
+  a browser context; `src/controller/timeouts.ts` holds the default, the cap and the protocol
+  timeout that `src/controller/browser.ts` launches with.
 
 ## Tests
 
 - `test/unit/capture-slots.test.ts`: limit, FIFO order, `503` when full, `MAX_QUEUED_CAPTURES=0`,
   release on error, a client hanging up while queued.
-- `test/unit/capture.capture.test.ts`: the timeout cap and invalid timeouts.
+- `test/unit/capture.capture.test.ts`: the timeout cap, invalid timeouts, `setContent` that never
+  returns, the protocol timeout.
+- `test/acceptance/app.test.ts`: `html whose script never ends` is a `504` and the service keeps
+  printing.
 - `test/acceptance/capture-limits.test.ts`: with one slot and no queue, a second request gets `503`
   with `Retry-After` while `/selfcheck` still answers `200`; a requested 60 s timeout is lowered to
   `MAX_TIMEOUT_MS` (1.5 s there), and the slot is free again after that `504`.

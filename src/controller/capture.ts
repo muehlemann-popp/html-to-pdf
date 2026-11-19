@@ -9,8 +9,8 @@ import puppeteer, {
 } from 'puppeteer'
 
 import { acquireContext, Lease } from '~/controller/browser'
+import { defaultNavigationTimeout, maxNavigationTimeout } from '~/controller/timeouts'
 import { CaptureParameters, CaptureType } from '~/interface'
-import { intFromEnv } from '~/util/env'
 import { redactUrls } from '~/util/log-params'
 import {
   CaptureTimeoutError, TargetError, toOptionsError, toTargetError,
@@ -20,11 +20,6 @@ import { validateParams } from '~/util/validate-params'
 import timestamp from '~/util/timestamp'
 
 export const defaultUrl = 'about:blank'
-
-export const defaultNavigationTimeout = 60000
-
-// a larger `timeout` is lowered to this, so no request holds a browser context for longer
-export const maxNavigationTimeout = intFromEnv('MAX_TIMEOUT_MS', 120000, 1)
 
 // the caller's timeout (0 or none: the default), at most MAX_TIMEOUT_MS
 const navigationTimeout = ({ timeout }: CaptureParameters): number => {
@@ -73,10 +68,11 @@ export const logException = async <T> (when: string, work: () => Promise<T>): Pr
   }
 }
 
-// puppeteer has no timeout for a screenshot or for evaluating in the page (only its 180 s protocol
-// timeout), and page.pdf's own does not cover reading the PDF stream, so these are raced against one;
-// the work left behind dies with the browser, which a failed capture replaces. Either timeout becomes a
-// CaptureTimeoutError, which the retry tells apart from a TimeoutError of the service (a launch)
+// puppeteer has no timeout for a screenshot, for evaluating in the page or for handing over html (only
+// its protocol timeout, ~/controller/timeouts), and page.pdf's own does not cover reading the PDF stream,
+// so these are raced against one; the work left behind dies with its context or browser. Either timeout
+// becomes a CaptureTimeoutError, which the retry tells apart from a TimeoutError of the service (a
+// launch); while loading, `navigate` makes it the caller's 504 right away
 const within = async <T> (ms: number, what: string, work: () => Promise<T>): Promise<T> => {
   let timer: NodeJS.Timeout | undefined
   const timedOut = () => new CaptureTimeoutError(`${what} timed out after ${ms}ms`)
@@ -175,10 +171,18 @@ export default async (captureType: CaptureType, params: CaptureParameters): Prom
       ) as Exclude<SetContentWaitForOptions['waitUntil'], undefined | string>
       const idle = waitUntil.map((event) => networkIdleConcurrency[event])
         .filter((concurrency): concurrency is number => concurrency !== undefined)
-      // an empty list would not wait for the document at all, only an omitted one defaults to load
-      await navigate('page.setContent', () => page.setContent(html, {
-        waitUntil: lifecycle.length ? lifecycle : ['load'],
-      }))
+      // an empty list would not wait for the document at all, only an omitted one defaults to load.
+      // Raced against the timeout: puppeteer's own covers only the lifecycle wait, not handing over the
+      // document (Page.setDocumentContent), which does not return while a script of it runs, e.g.
+      // `while (true) {}`, until the 180 s protocol timeout, a service failure. Timing out here is the
+      // page's, a 504 like any loading timeout; closing the context ends its renderer
+      await navigate('page.setContent', () => within(
+        remaining(),
+        'page.setContent',
+        () => page.setContent(html, {
+          waitUntil: lifecycle.length ? lifecycle : ['load'],
+        }),
+      ))
       if (idle.length) {
         await navigate('page.waitForNetworkIdle', () => page.waitForNetworkIdle({
           concurrency: Math.min(...idle),

@@ -171,6 +171,13 @@ describe('Basic routing', () => {
         504,
         /timeout|timed out/i,
       ],
+      // its script blocks handing over the document, which used to wait 180 s, twice, then the process exited
+      [
+        'html whose script never ends',
+        () => ({ html: '<p>x</p><script>while (true) {}</script>', timeout: 1500 }),
+        504,
+        /page\.setContent timed out/,
+      ],
       // retried on a fresh browser first, since ERR_ABORTED can also mean a failing browser
       ['a download', () => ({ url: `${silentUrl()}/download` }), 502, /ERR_ABORTED/],
       [
