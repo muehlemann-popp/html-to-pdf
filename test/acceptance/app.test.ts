@@ -179,6 +179,13 @@ describe('Basic routing', () => {
         504,
         /Waiting for selector `#pdf-ready` failed/,
       ],
+      // Page.setDocumentContent never returns: it used to wait for the 180 s protocol timeout twice and exit
+      [
+        'html whose script never ends',
+        () => ({ html: '<p>x</p><script>while (true) {}</script>', timeout: 1500 }),
+        504,
+        /page\.setContent timed out/,
+      ],
       ['an invalid selector', () => ({ html: '<p>x</p>', waitForSelector: 'a[' }), 400, /is not a valid selector/],
       ['an invalid XPath selector', () => ({ waitForSelector: '::-p-xpath(//[)' }), 400, /not a valid XPath/],
       // thrown as a plain Error, it used to take the retry and make the process exit

@@ -44,7 +44,12 @@ run the container out of memory. The memory figures this is sized on come from
   is a `CaptureTimeoutError`, not a `TargetError` at first, since a hung browser looks the same: it
   takes the retry on a fresh browser, which loads the page again, and only a second one becomes a
   `504` (`toRetriedTargetError`). A request whose print times out twice therefore takes up to
-  `4 × MAX_TIMEOUT_MS`. Any other puppeteer `TimeoutError` outside loading, such as Chromium not
+  `4 × MAX_TIMEOUT_MS`. Loading `html` is raced the same way: `page.setContent` sends the document in
+  one protocol call, which Chromium answers only once the document is written, so a script that never
+  ends (`while (true) {}`) held it for the 180 s protocol timeout, twice, and then the process exited.
+  puppeteer's own `timeout` starts only after that call, so the race gets `timeout` plus 1 s
+  (`setContentGraceMs`): a page that merely loads slowly still ends with puppeteer's `TimeoutError`,
+  a `504` at once. Any other puppeteer `TimeoutError` outside loading, such as Chromium not
   starting within puppeteer's launch timeout, stays a service failure: twice in a row, the process
   exits and is restarted.
 - Invalid values of the three variables (not an integer, below their minimum of 1, 0 and 1) fall

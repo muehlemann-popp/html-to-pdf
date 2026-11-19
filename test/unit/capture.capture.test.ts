@@ -3,7 +3,7 @@ import {
 } from 'vitest'
 import puppeteer, { TimeoutError } from 'puppeteer'
 import { closeBrowser } from '~/controller/browser'
-import capture, { defaultViewportOptions } from '~/controller/capture'
+import capture, { defaultViewportOptions, setContentGraceMs } from '~/controller/capture'
 import { CaptureType } from '~/interface'
 import { CaptureTimeoutError, TargetError } from '~/util/target-error'
 
@@ -325,6 +325,34 @@ describe('capture', () => {
     expect(error.message).toMatch(/timed out after \d+ms/)
     expect(contextProto.close).toHaveBeenCalled()
     expect(browserProto.close).toHaveBeenCalled()
+  })
+
+  // a script that never ends holds Page.setDocumentContent until puppeteer's 180 s protocol timeout
+  it('stops waiting for html whose document is never written after the timeout and replaces the browser', async () => {
+    pageProto.setContent.mockImplementationOnce(() => new Promise(() => undefined))
+    const started = Date.now()
+    const error = await capture(CaptureType.PDF, { html: '<script>while (true) {}</script>', timeout: 50 })
+      .catch((e) => e)
+    expect(error).toBeInstanceOf(CaptureTimeoutError)
+    expect(error).not.toBeInstanceOf(TargetError)
+    expect(error.message).toMatch(/^page\.setContent timed out after \d+ms$/)
+    expect(Date.now() - started).toBeLessThan(50 + setContentGraceMs + 500)
+    expect(pageProto.pdf).not.toHaveBeenCalled()
+    expect(contextProto.close).toHaveBeenCalled()
+    expect(browserProto.close).toHaveBeenCalled()
+  })
+
+  // puppeteer's own timeout starts after the document is written, so the race must not get there first
+  it('still reports html that loads too slowly as a 504 right away and keeps the browser', async () => {
+    pageProto.setContent.mockImplementationOnce(async () => {
+      await new Promise((resolve) => { setTimeout(resolve, 60) })
+      throw new TimeoutError('Navigation timeout of 50 ms exceeded')
+    })
+    const error = await capture(CaptureType.PDF, { html: '<img src="https://slow.example">', timeout: 50 })
+      .catch((e) => e)
+    expect(error).toBeInstanceOf(TargetError)
+    expect(error.status).toBe(504)
+    expect(browserProto.close).not.toHaveBeenCalled()
   })
 
   // puppeteer's own pdf timeout ("Timed out after waiting …ms") is told apart from a launch timeout too
