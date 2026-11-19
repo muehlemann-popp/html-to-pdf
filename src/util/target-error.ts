@@ -101,6 +101,8 @@ const invalidOptions = new RegExp(`^Protocol error \\([\\w.]+\\): (${[
   'invalid print parameters',
   'scale is outside',
   'Page range ',
+  // Page.captureScreenshot: a fullPage screenshot of a page longer or wider than Chromium can capture
+  'Page is too large',
 ].join('|')})`)
 
 /**
@@ -114,10 +116,16 @@ export const toOptionsError = (e: unknown): unknown => {
   return invalidOptions.test(message) ? new TargetError(message, 400) : e
 }
 
+// Chromium could not capture the screenshot: more pixels than it can allocate, which ~/util/screenshot-size
+// mostly answers before Chromium tries (a fullPage screenshot that is too long is "Page is too large.").
+// A broken browser can give the same message, so it is not a TargetError before a fresh browser has failed
+// the same way
+const screenshotFailed = /^Protocol error \(Page\.captureScreenshot\): Unable to capture screenshot/
+
 /**
  Converts an error that a fresh browser reproduced: the browser was replaced after the first attempt,
- so the page is the cause (e.g. ERR_ABORTED for a download or an ftp:// URL, or a page that takes
- longer than `timeout` to print).
+ so the page is the cause (e.g. ERR_ABORTED for a download or an ftp:// URL, a page that takes
+ longer than `timeout` to print, or a screenshot too large to capture).
 */
 export const toRetriedTargetError = (e: unknown): unknown => {
   // printing or capturing took longer than `timeout` on a fresh browser as well: the page is too heavy.
@@ -126,8 +134,17 @@ export const toRetriedTargetError = (e: unknown): unknown => {
     return new TargetError(e.message, 504)
   }
   const message = (e as Error)?.message ?? ''
-  if (!(e instanceof TargetError) && /net::ERR_[A-Z_]+/.test(message)) {
+  if (e instanceof TargetError) {
+    return e
+  }
+  if (/net::ERR_[A-Z_]+/.test(message)) {
     return new TargetError(message, 502)
+  }
+  if (screenshotFailed.test(message)) {
+    return new TargetError(
+      `${message}: the screenshot may be too large (viewport, deviceScaleFactor, fullPage)`,
+      400,
+    )
   }
   return e
 }

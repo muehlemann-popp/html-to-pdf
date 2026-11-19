@@ -226,6 +226,54 @@ describe('Basic routing', () => {
         })
     })
 
+    // Chromium fails on these in ways that look like a broken browser (with the sandbox, its renderer
+    // dies), so they used to make the process exit; see ~/util/screenshot-size
+    it.each([
+      [
+        'a viewport',
+        { viewport: { width: 16000, height: 16000, deviceScaleFactor: 4 } },
+        /the screenshot is too large: the viewport is 64000 × 64000 px/,
+      ],
+      [
+        'a full page',
+        {
+          html: '<body style="margin: 0"><div style="height: 100000px">x</div></body>',
+          viewport: { width: 1200, height: 800, deviceScaleFactor: 2 },
+          screenshotOptions: { fullPage: true },
+        },
+        /the screenshot is too large: the full page is 2400 × 200000 px/,
+      ],
+      // below the limit, but over what Chromium captures of a full page ("Page is too large.")
+      [
+        'a full page Chromium refuses',
+        {
+          html: '<body style="margin: 0"><div style="height: 200000px">x</div></body>',
+          screenshotOptions: { fullPage: true },
+        },
+        /Page is too large/,
+      ],
+    ])('answers a screenshot of %s too large to capture with a 400', async (_, body, message) => {
+      await request(app).post('/screenshot')
+        .send({ html: '<p>x</p>', ...body })
+        .expect('Content-Type', /application\/json/)
+        .expect(400)
+        .expect((res) => {
+          expect(res.body.message).toMatch(message)
+        })
+    })
+
+    // Chromium renders only the clip: this viewport alone would be refused, with the sandbox it crashed
+    it('takes a small clip of a viewport too large to capture as a whole', async () => {
+      await request(app).post('/screenshot')
+        .send({
+          html: '<p>x</p>',
+          viewport: { width: 16000, height: 16000, deviceScaleFactor: 4 },
+          screenshotOptions: { clip: { x: 0, y: 0, width: 100, height: 100 } },
+        })
+        .expect('Content-Type', 'image/png')
+        .expect(200)
+    })
+
     it('stays healthy and keeps printing afterwards', async () => {
       await request(app).get('/health').expect(200)
       const content: string = await downloadPDF((req) => req.get('/pdf'))

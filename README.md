@@ -58,6 +58,10 @@ Optional environment variables:
   request beyond that is answered with `503` and `Retry-After: 1`. `0` rejects as soon as all slots
   are busy. A client that hangs up while queued gives up its place. `/selfcheck` takes no slot.
 - `MAX_TIMEOUT_MS`, default `120000`: a larger `timeout` in a request is lowered to this.
+- `MAX_SCREENSHOT_PIXELS`, default `268435456` (16384 × 16384): a screenshot with more pixels
+  (viewport or `clip`, or the whole page for `fullPage`, times `deviceScaleFactor`) is answered with
+  `400`. Chromium fails above about this size, with the sandbox by crashing. A screenshot this large
+  needs about 1 GiB of memory: lower it for small containers.
 - `BROWSER_MAX_CAPTURES`, default `100`: the browser is replaced after this many captures.
 - `BROWSER_IDLE_TIMEOUT_MS`, default `30000`: the browser is closed after this long without requests
   and started again by the next one.
@@ -345,6 +349,8 @@ status that says whose problem it is:
 | `400` | `waitForSelector` is not a non-empty string, or not a valid selector (`SyntaxError: … is not a valid selector`, `Unknown selector type: …`); checked before the page is loaded | keeps running |
 | `400` | An option cannot be used: `html` not a string, `waitUntil` not a list of the four events, an unknown `pdfOptions.format`, a malformed `width`/`height`/`margin`, a `scale` outside 0.1–2, a `viewport` with a non-positive size, an unknown screenshot `type`, a `quality` out of range or for png, `clip` together with `fullPage`, …, or a value that Chromium itself refuses (`Invalid parameters …`, `paper width is zero or negative`, `Page range …`); the body not being a JSON object. Checked before the page is loaded where possible | keeps running |
 | `400` | The body is not valid JSON | keeps running |
+| `400` | The screenshot is too large: more than `MAX_SCREENSHOT_PIXELS` (`the screenshot is too large: …`; checked before the browser is used, for `fullPage` once the page is loaded), or a `fullPage` screenshot longer or wider than Chromium captures (`Page is too large.`) | keeps running |
+| `400` | Chromium could not capture the screenshot on a fresh browser either (`Unable to capture screenshot: the screenshot may be too large …`) | retried once on a fresh browser, since a failing browser reports this too; keeps running |
 | `413` | The body is larger than 30 MB | keeps running |
 | `415` | A body was sent with a `Content-Type` other than JSON (`text/plain`, a form, none): it would otherwise be ignored and a blank page printed. Send `Content-Type: application/json` | keeps running |
 | `502` | The requested site failed: DNS, refused connection, TLS, certificate, redirects, broken response (`net::ERR_NAME_NOT_RESOLVED`, `net::ERR_CONNECTION_REFUSED`, `net::ERR_CERT_…`, …) | keeps running |
