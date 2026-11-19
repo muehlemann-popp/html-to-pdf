@@ -34,6 +34,11 @@ and about 2.5× lower latency.
   saves nothing once the initial tab is closed (ADR 0002).
 - Local development with a regular Chrome binary still works: `headless: 'shell'` passes plain
   `--headless`, which is new headless in Chrome ≥ 132. Rendering checks belong in the image.
+- The Chromium major is whatever Alpine ships, not the Alpine tag: Alpine 3.24 moved from 155 to 156
+  within the release and keeps only the newest version in its repository, so it cannot be pinned.
+  Every build takes the current one; `test/acceptance/chromium-version.test.ts` fails CI when
+  puppeteer targets another major (added 2026-11-19, when the image already shipped 156 with
+  puppeteer 25.13.0 for 155).
 - chrome-headless-shell is a separate upstream build that puppeteer supports first-class
   (`headless: 'shell'`). If Alpine ever stops packaging it, the fallback is `chromium` with
   `headless: true` and the memory numbers above.

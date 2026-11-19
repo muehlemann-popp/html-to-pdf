@@ -29,10 +29,13 @@ point it at one with `PUPPETEER_EXECUTABLE_PATH`, or run tests in the `test` ima
 - **Dependencies must be at least 14 days old.** `.yarnrc.yml` enforces it (`npmMinimalAgeGate`);
   never lower or bypass it, and do not pin a version younger than that.
 - **Chromium comes from Alpine, not from puppeteer**: the `chromium-headless-shell` package
-  ([ADR 0001](docs/adr/0001-chromium-headless-shell.md)). The `alpine:3.XX` tag in
-  `deploy/Dockerfile` decides the Chromium major; keep `puppeteer` in `package.json` on the release
-  that targets the same major (its `PUPPETEER_REVISIONS`). The `node:*-alpine3.XX` tag must name the
-  same Alpine release: only its node binary is copied into `base`.
+  ([ADR 0001](docs/adr/0001-chromium-headless-shell.md)). Alpine moves Chromium to a new major
+  within a release (3.24: 155, then 156) and keeps only the newest in its repository, so the image
+  cannot pin it: every build gets the current one. Keep `puppeteer` in `package.json` on the release
+  that targets that major (its `PUPPETEER_REVISIONS`); `test/acceptance/chromium-version.test.ts`
+  fails CI when they differ. A new major is a rendering change (see below). The
+  `node:*-alpine3.XX` tag must name the same Alpine release as `alpine:3.XX`: only its node binary is
+  copied into `base`.
 - The prod image has no npm, npx, corepack or yarn: `base` starts from `alpine`, and only the `yarn`,
   `builder`, `dev` and `test` stages get corepack. Do not add them back to `base`.
 - `base` deletes Mesa's `libgallium` and `libLLVM` (~200 MiB), which Chromium never loads with
