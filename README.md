@@ -13,7 +13,7 @@ bundled by [esbuild](https://esbuild.github.io/) and
 dependencies managed by [yarn 4](https://yarnpkg.com/).
 
 The image runs Node 26 (LTS) and the Chromium package of its Alpine release (currently Alpine 3.24,
-Chromium 155), driven by the puppeteer release that targets the same Chromium major.
+Chromium 156), driven by the puppeteer release that targets the same Chromium major.
 
 ⚠️ Disclaimer: this is **not** a public service. By default Chromium runs with `--no-sandbox`, so a
 page that exploits a Chromium bug runs code with the rights of the service. The

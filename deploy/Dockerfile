@@ -1,4 +1,5 @@
-# The Alpine release pins the Chromium major (3.24 ships Chromium 155), keep it in sync with
+# The Chromium major is what the Alpine release ships on the day of the build (3.24 ships Chromium 156
+# since November 2026, it started with 155: Alpine updates it within a release), keep it in sync with
 # the puppeteer version in package.json, see AGENTS.md. Node comes from the official image of the same
 # Alpine release: the `node:…-alpine3.XX` and `alpine:3.XX` tags below must name the same release (the
 # node binary links against its musl and libstdc++).
